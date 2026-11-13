@@ -184,3 +184,15 @@
 0BFD24  data  colour_cycles
 # the widths of the font's 128 characters, a byte each (text_width)
 0C1430  data  character_widths
+# the menus' tables (tools/walk_texts.py, walk_patterns.py): the options' texts (17, by the option and its value),
+# the credits' texts (58) and their lines' indices (100 bytes, five a page: 0FF5D4-0FF638), the options screen's
+# four palettes (0FF7A6-0FF7CE), five records of 6 bytes copied into FFF8DA (0FED1C; what they hold: to find),
+# and two sequences of 15 buttons the options screen counts (0FF034-0FF0B2): the first sets FFF8F8, the level
+# select the control scripts poke on, the second makes the function return 1
+0D3B54  data  options_texts
+0D3B98  data  options_palettes
+0D3BA0  data  credits_lines
+0D3C04  data  credits_texts
+0D3CEC  data  fff8da_records
+0D3D0A  data  level_select_sequence
+0D3D28  data  options_sequence

@@ -27,6 +27,7 @@ sys.path[:0] = [str(TOOLS / "core"), str(TOOLS)]
 
 SCRATCH = {"D0", "D1", "A0", "A1"}  # the registers a call of the game's C does not keep
 PUSHES_WALKED = 4096                # how far back from a call its pushes are looked for (many ways can share it)
+LOOP_WALKED = 64                    # how far after its setup a loop's end is looked for
 CALL_TARGET_WALKED = 4096           # how far back from a call through a register its loader is looked for
 LEVELS = 4                          # the tables the game has: what a table indexed by the level holds
 LEVEL_VARIABLE = 0xFF75B0           # the level: 0-3 the tables, 4 the options screen (0FEDA4)
@@ -76,6 +77,7 @@ class CodePatterns:
         self.comes_from = {}            # {address: positions of the jumps and branches that go there}
         self.value_tables_by_level = {}     # {address: (stride, size of an entry, how it was found)}
         self.copied_blocks = {}         # {address: (size, how it was found)}
+        self.loop_tables = {}           # {address: (entries, stride, how it was found)}
         self.handed = set()             # the places the code hands over or keeps in a table (the anchors but
                                         # the constants of instructions)
 
@@ -331,6 +333,95 @@ class CodePatterns:
             if block + size <= len(self.image):
                 self.copied_blocks.setdefault(block, (size, f"copied at {address:06X}"))
 
+    def pointer_loop(self, position, address, instruction):
+        """A table a loop walks from its start with a pointer: a counter cleared ("clr.w Dk" or "moveq #0, Dk")
+        just before, "movea.l #TABLE, An; lea (An,Dx.w), Ap" (maybe "movea.l Ap, Aq" after), then a loop that
+        moves the pointer on by what it reads with "(Ap)+" or adds to it ("addq", "adda"), and ends "addq.w #1,
+        Dk; cmpi.w #N, Dk; blt" back, the index from that counter: N entries of that stride (a table of the
+        cartridge), up to the next place the code names (a loop can move on past what it reads: 0FEEA4's six
+        steps read the first three)"""
+        operands = instruction.operands
+        if instruction.mnemonic != "movea" or len(operands) != 2 or operands[0].mode != "immediate" \
+                or position + 3 >= len(self.ordered) or operands[0].value & 0xFFFFFF >= len(self.image):
+            return
+        lea = self.ordered[position + 1][1]
+        if lea.mnemonic != "lea" or lea.operands[0].mode != "index" or lea.operands[0].reg != operands[1].reg:
+            return
+        pointer, at = lea.operands[1].reg, position + 2
+        keep = self.ordered[at][1]
+        if keep.mnemonic == "movea" and keep.operands[0].mode == "areg" and keep.operands[0].reg == pointer:
+            pointer, at = keep.operands[1].reg, at + 1
+        for end in range(at, min(at + LOOP_WALKED, len(self.ordered) - 2)):
+            compare, branch = self.ordered[end][1], self.ordered[end + 1][1]
+            if compare.mnemonic != "cmpi" or compare.size != "w" or compare.operands[1].mode != "dreg" \
+                    or branch.mnemonic != "bcc" or branch.condition != "lt" or branch.target is None \
+                    or not self.ordered[at][0] <= branch.target <= compare.address:
+                continue
+            counter = compare.operands[1].reg
+            index = lea.operands[0].index
+            if not self.cleared_before(position, counter) or (index != counter and not any(
+                    step.mnemonic == "move" and step.operands[0].mode == "dreg" and step.operands[0].reg == counter
+                    and step.operands[1].reg == index
+                    for step in (self.ordered[back][1] for back in range(max(position - 8, 0), position)))):
+                return
+            first = self.position_of[branch.target]
+            stride = 0
+            for step in (self.ordered[index][1] for index in range(first, end)):
+                moved = step.operands
+                if moved and moved[0].mode == "postinc" and moved[0].reg == pointer:
+                    stride += {"b": 1, "w": 2, "l": 4}.get(step.size, 0)
+                if step.mnemonic in ("addq", "adda") and len(moved) == 2 and moved[1].mode == "areg" \
+                        and moved[1].reg == pointer and moved[0].mode in ("quick", "immediate"):
+                    stride += moved[0].value
+            if stride:
+                table = operands[0].value & 0xFFFFFF
+                self.loop_tables.setdefault(table, (compare.operands[0].value, stride,
+                                                    f"walked by the loop {branch.target:06X}-{compare.address:06X}"))
+            return
+
+    def cleared_before(self, position, register):
+        """Whether 'register' is cleared ("clr.w" or "moveq #0") a few instructions before 'position', and nothing
+        else writes it since"""
+        for at in range(position - 1, max(position - 9, -1), -1):
+            step = self.ordered[at][1]
+            moved = step.operands
+            if (step.mnemonic == "clr" and moved[0].mode == "dreg" and moved[0].reg == register) \
+                    or (step.mnemonic == "moveq" and moved[0].value == 0 and moved[1].reg == register):
+                return True
+            if writes(step, register):
+                return False
+        return False
+
+    def sequence_counter(self, position, address, instruction):
+        """A sequence read by a counter the code steps on to N: "move.b COUNTER, Dn; ext.w Dn; add.w Dn, Dn;
+        movea.l #TABLE, An; move.w (An,Dn.w)", and in the function "addq.b #1, COUNTER; cmpi.b #N, COUNTER"
+        (COUNTER an absolute byte or (Am)): N words"""
+        operands = instruction.operands
+        if instruction.mnemonic != "movea" or len(operands) != 2 or operands[0].mode != "immediate" or position < 3 \
+                or operands[0].value & 0xFFFFFF >= len(self.image):
+            return
+        load, extend, scale = (self.ordered[position - back][1] for back in (3, 2, 1))
+        if load.mnemonic != "move" or load.size != "b" or extend.mnemonic != "ext" or scale.mnemonic != "add" \
+                or load.operands[0].mode not in ("abs_long", "indirect"):
+            return
+        counter = load.operands[0]
+
+        def same(operand):
+            return operand.mode == counter.mode and operand.reg == counter.reg and operand.value == counter.value
+
+        function = self.function_of(address)
+        first = self.position_of.get(function, position)
+        for at in range(first, len(self.ordered) - 1):
+            if at > position + LOOP_WALKED * 4 or (at > first and self.ordered[at][0] in self.analysis.functions):
+                break
+            step, compare = self.ordered[at][1], self.ordered[at + 1][1]
+            if step.mnemonic == "addq" and step.size == "b" and step.operands[0].value == 1 and same(step.operands[1]) \
+                    and compare.mnemonic == "cmpi" and compare.size == "b" and same(compare.operands[1]):
+                table = operands[0].value & 0xFFFFFF
+                self.loop_tables.setdefault(table, (compare.operands[0].value, 2,
+                                                    f"read by the counter that {compare.address:06X} ends"))
+                return
+
     def spans_patterns(self, found):
         """The values by the level, an entry each, but the tables another subject describes and the entries
         inside another's (a table read as words of longs: "every 4, 2 read" inside "every 4, 4 read")"""
@@ -344,3 +435,7 @@ class CodePatterns:
             stop = max(stop, last)
         for block, (size, _) in self.copied_blocks.items():
             found.setdefault(block, (block + size, "copied block"))
+        for table, (entries, stride, _) in self.loop_tables.items():
+            stop = min(table + entries * stride, min((place for place in self.anchors if place > table),
+                                                     default=len(self.image)))
+            found.setdefault(table, (stop, "loop table"))

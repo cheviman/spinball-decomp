@@ -13,6 +13,10 @@ Author:      Sebastian Toyos
                  argument on, unchanged, as a reader's text (0DE9D4, which draws a text: argument 5; 0DE816,
                  0DE87A, 0F641C, 0FF64A). A call through a register counts as a call of the function the code
                  put in it (walk_patterns.call_target()).
+  tables         a table of texts the code takes a text argument from ("move.l (A0,Dn.w), -(A7)" after "movea.l
+                 #TABLE, A0", or "(Ap)+" from it): its entries while each is a text, up to the next place the code
+                 names (the options' texts D3B54, the credits' D3C04); and the bytes that index one (the credits'
+                 lines, D3BA0).
   formats        a reader that compares the text's bytes with '%' and 's' (0D6A50) takes a format: each "%"
                  conversion after it takes the next argument, and a "%s" one takes a text.
   texts          what the calls of the readers get as those arguments ("pea TEXT.l", back through the branches
@@ -25,11 +29,12 @@ from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
 sys.path[:0] = [str(TOOLS / "core"), str(TOOLS)]
-from walk_patterns import writes  # noqa: E402
+from walk_patterns import long_at, writes  # noqa: E402
 
 PERCENT, STRING = 0x25, 0x73        # what a format reader compares the text's bytes with: '%' and 's'
 TEXT_PAD = 0xFF                     # what evens the place after a text of an odd length
 CHARACTERS = 128                    # the font's: the texts' bytes are 0-127
+MAX_TEXT = 256                      # the longest a text of a table can be
 
 
 def read_text(image, address):
@@ -59,6 +64,8 @@ class TextsWalk:
         self.formats = {}               # {function: its format's argument}
         self.texts = {}                 # {address: (size in bytes, how it was found)}
         self.char_widths = {}           # {address: (characters, how it was found)}
+        self.text_tables_found = {}     # {address: (entries, how it was found)}
+        self.text_indices = {}          # {address: (size, how it was found)}
 
     def function_body(self, function):
         """The positions of a function's instructions, up to the next function"""
@@ -132,6 +139,7 @@ class TextsWalk:
                             if kind == "s":
                                 for value, _ in self.passed(position, argument + 1 + index):
                                     self.add_text(value, f"a %s of the format {text:06X} at {address:06X}")
+        self.text_tables()
 
     def texts_read_in_place(self):
         """Texts a function reads itself: "movea.l #TEXT, An" (or "lea TEXT, An"), then "move.b (An)+" up to a
@@ -169,6 +177,75 @@ class TextsWalk:
                for byte in self.image[address:address + size]):
             raise SystemExit("a text has a byte past the font's characters")
 
+    def text_tables(self):
+        """Tables of texts: what a reader's call gets as its text is "move.l (A0,Dn.w), -(A7)" after "movea.l
+        #TABLE, A0", or "move.l (Ap)+, -(A7)" with Ap from "movea.l #TABLE, A0; lea (A0,Dx.w), Ap"; the
+        table's entries go on while each is a text, up to the next place the code names. A table whose bytes,
+        read "move.b (Ap)+" a few instructions before, give the index is the table's indices (the credits' lines,
+        D3BA0): up to the next place the code names, each byte an entry of the texts' table"""
+        for position, (address, instruction) in enumerate(self.ordered):
+            target = self.call_target(position) if instruction.flow == "call" else None
+            for argument in self.text_readers.get(target, {}):
+                for push in self.pushes(position, argument) or ():
+                    table, at = self.text_table_of(push)
+                    if table is None or table in self.text_tables_found:
+                        continue
+                    stop = min((place for place in self.anchors if place > table), default=len(self.image))
+                    entries = 0
+                    while table + 4 * entries + 4 <= stop \
+                            and self.is_text(long_at(self.image, table + 4 * entries)):
+                        self.add_text(long_at(self.image, table + 4 * entries),
+                                      f"entry {entries} of the texts' table {table:06X}")
+                        entries += 1
+                    if not entries:
+                        continue
+                    self.text_tables_found[table] = (entries, f"its texts go to {target:06X} at {address:06X}")
+                    self.text_indices_for(at, table, entries)
+
+    def text_table_of(self, push):
+        """(the table, the position of its "movea.l #TABLE") a push takes a text from, or (None, None)"""
+        source = push.operands[0]
+        at = self.position_of[push.address]
+        if push.mnemonic != "move" or push.size != "l":
+            return None, None
+        if source.mode == "index":
+            loader = self.ordered[at - 1][1]
+            if loader.mnemonic == "movea" and loader.operands[0].mode == "immediate" \
+                    and loader.operands[1].reg == source.reg:
+                return loader.operands[0].value & 0xFFFFFF, at - 1
+        if source.mode == "postinc":
+            for back in range(at - 1, max(at - 12, 1), -1):
+                lea, loader = self.ordered[back][1], self.ordered[back - 1][1]
+                if lea.mnemonic == "lea" and lea.operands[0].mode == "index" and lea.operands[1].reg == source.reg \
+                        and loader.mnemonic == "movea" and loader.operands[0].mode == "immediate" \
+                        and loader.operands[1].reg == lea.operands[0].reg:
+                    return loader.operands[0].value & 0xFFFFFF, back - 1
+        return None, None
+
+    def text_indices_for(self, at, table, entries):
+        """The bytes that index a texts' table, if the code reads them "move.b (Ap)+" just before its movea"""
+        for back in range(at - 1, max(at - 6, 1), -1):
+            read = self.ordered[back][1]
+            if read.mnemonic == "move" and read.size == "b" and read.operands[0].mode == "postinc":
+                pointer = read.operands[0].reg
+                for earlier in range(back - 1, max(back - 12, 1), -1):
+                    lea, loader = self.ordered[earlier][1], self.ordered[earlier - 1][1]
+                    if lea.mnemonic == "lea" and lea.operands[0].mode == "index" and lea.operands[1].reg == pointer \
+                            and loader.mnemonic == "movea" and loader.operands[0].mode == "immediate":
+                        indices = loader.operands[0].value & 0xFFFFFF
+                        stop = min((place for place in self.anchors if place > indices), default=len(self.image))
+                        if all(byte < entries for byte in self.image[indices:stop]):
+                            self.text_indices[indices] = (stop - indices, f"index the texts' table {table:06X}")
+                        return
+                return
+
+    def is_text(self, address):
+        """Whether the bytes at 'address' read as a text: the font's characters up to a 0, within MAX_TEXT"""
+        if not 0 < address < len(self.image):
+            return False
+        end = self.image.find(0, address, address + MAX_TEXT)
+        return end >= address and all(0x20 <= byte < CHARACTERS for byte in self.image[address:end])
+
     def add_text(self, address, found):
         if address in self.texts or not 0 <= address < len(self.image):
             return
@@ -183,4 +260,8 @@ class TextsWalk:
             found.setdefault(address, (stop, "text"))
         for table, (characters, _) in self.char_widths.items():
             found.setdefault(table, (table + characters, "character widths"))
+        for table, (entries, _) in self.text_tables_found.items():
+            found.setdefault(table, (table + 4 * entries, "texts' table"))
+        for table, (size, _) in self.text_indices.items():
+            found.setdefault(table, (table + size, "text indices"))
 

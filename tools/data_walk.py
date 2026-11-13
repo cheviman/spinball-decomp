@@ -64,12 +64,13 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
             self.level_pointer_store(position, address, instruction)
             self.level_value_load(position, address, instruction)
             self.block_copy(position, address, instruction)
+            self.pointer_loop(position, address, instruction)
+            self.sequence_counter(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
         self.pair_planes()
         self.find_cycles()
-        self.walk_texts()
         self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables) \
             | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables) \
             | set(self.tilesets) | set(self.tileset_tables) | set(self.pointer_tables)
@@ -82,6 +83,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
         self.walk_planes()
         self.walk_collisions()
         self.walk_flippers()
+        self.walk_texts()
         self.walk_definitions()
         biggest = max(len(sprites) for _, sprites, _, _ in self.sprite_tables.values())
         for table, found in lists:
