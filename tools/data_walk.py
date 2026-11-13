@@ -9,8 +9,9 @@ Modified:    13-11-2026
 Author:      Sebastian Toyos
 
 Usage: python tools/data_walk.py [cartridge] [--reads FOLDER]
-(the coverage takes spans() through the profile's DATA_WALK; with --reads, the report lists what the animation
-engine read in the scenarios' runs that the walk does not have, and what it has that other code reads)
+(the coverage takes spans() through the profile's DATA_WALK; with --reads, the report lists what the code that
+reads the walked data (the animation engine, the tile loaders) read in the scenarios' runs that the walk does not
+have, and the animations' bytes other code reads)
 
   definition     what make_animated_object (0D5F16) takes as its first argument, 12 bytes: the address of a
                  sprite descriptor, the address of the object's animation (its field 0), a byte its field 28 takes,
@@ -51,6 +52,17 @@ engine read in the scenarios' runs that the walk does not have, and what it has 
                  code does it: "movea.l #TABLE, A0; lea (A0,D0.w), A0; movea.l A0, An", then a loop that moves An
                  on by 20 until "cmpi.w #COUNT, Dn; blt" (Toxic Caves 0E626C, 173; Lava Powerhouse 0E4DFC, 211;
                  Showdown 0E9E7E, 186; The Machine 0F10EE, 158).
+  tiles          what the code hands to the functions that load tiles into the VRAM (tools/spinball_compression.py),
+                 found like the definitions ("pea TILES.l", or a table by the level), and read as they read it:
+                 0D6B88 SSC (its first argument; Toxic Caves' 0D3FE4-0D401A: the level's tiles from the table
+                 BFBE0, then the ones of BFBF0 after them, from the tile the first ones' word says); 0F3BB8 a word,
+                 then as many tiles as it says, as they are, or C2 if it says 0 or less (its argument); 0F5A5E C2
+                 (its second argument; the bonus stage 0FA7FE-0FA826: one of four by FF3CBC). SSC tiles that read
+                 a place of the window not written yet, or do not give as many as their word says, are no tiles.
+                 Tiles of an odd size are followed by FF, to even the place after them. The C2 decoder reads the
+                 masks of the codes' widths at 09BCD2 (four words: the fourth, FFF, is never read), and a code as
+                 the three bytes from the one its first bit is in: two bytes past the end, which belong to what
+                 follows.
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -65,6 +77,7 @@ sys.path[:0] = [str(TOOLS / "core"), str(TOOLS)]
 import game_profile  # noqa: E402
 from m68000.analysis import data_places  # noqa: E402  (the places an instruction reads or takes the address of)
 import spinball_animation as animation  # noqa: E402
+import spinball_compression as compression  # noqa: E402
 import spinball_graphics as graphics  # noqa: E402
 
 MAKE_ANIMATED_OBJECT = 0x0D5F16     # takes a definition first
@@ -77,7 +90,20 @@ TABLE_OBJECT_DEFINITION = 0x0A      # its definition's long
 DESCRIPTOR_SIZE = 8
 SPRITE_LINK_FIELD = 0x3A            # an object's link to the structure that holds its sprite table
 SPRITE_TABLE_FIELD = 0x0A           # that structure's sprite table
-ANIMATION_ENGINE = (0x0D58B0, 0x0D60E2)     # the code that reads animations (for the report: 0D58B0-0D60E0)
+TILE_LOADERS = {                    # the functions that load tiles into the VRAM: (what they read, its argument)
+    0x0D6B88: ("ssc", 0),           # SSC; the second argument the VRAM's tile
+    0x0F3BB8: ("word", 0),          # a word: above 0 that many tiles as they are, else C2; to VRAM 0
+    0x0F5A5E: ("c2", 1),            # C2; the first argument the VRAM's address
+}
+TILESET_PAD = 0xFF                  # what evens the place after tiles of an odd size
+C2_MASKS_SIZE = 8                   # four words: 1FF, 3FF, 7FF and FFF, the last not read (codes stop at 11 bits)
+READERS = {                         # the code that reads what the walk has (for the report)
+    "animation engine": (0x0D58B0, 0x0D60E2),
+    "SSC decoder": (0x0D6B88, 0x0D6C2A),
+    "tile loader": (0x0F3BB8, 0x0F3C06),
+    "C2 decoder": (0x0F5A7A, 0x0F5B9E),
+}
+C2_READ_PAST = 2                    # the C2 decoder reads a code as the three bytes from its first: past the end
 
 
 def long_at(image, address):
@@ -133,6 +159,8 @@ class Walk:
         self.anchors = set()            # places the code names: an animation that runs on ends there
         self.object_tables = {}         # {address: (objects, how it was found)}
         self.makers = {MAKE_ANIMATED_OBJECT: (0, "the engine")}     # {function: (its definition's argument, how)}
+        self.tilesets = {}              # {address: (kind, size in bytes, how it was found)}
+        self.tileset_tables = {}        # {address: how it was found}: tables of four tilesets, a level each
         self.ordered = []               # [(address, Instruction)] of the analysis, in address order
         self.position_of = {}           # {address: its position in ordered}
         self.comes_from = defaultdict(list)     # {address: positions of the jumps and branches that go there}
@@ -150,11 +178,14 @@ class Walk:
         for position, (address, instruction) in enumerate(instructions):
             if instruction.flow == "call" and instruction.target in self.makers:
                 self.call_site(position, address, instruction.target)
+            if instruction.flow == "call" and instruction.target in TILE_LOADERS:
+                self.tileset_load(position, address, instruction.target)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
         self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables) \
-            | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables)
+            | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables) \
+            | set(self.tilesets) | set(self.tileset_tables)
         for instruction in self.analysis.instructions.values():
             self.anchors.update(place for place in data_places(instruction) if place < len(self.image))
         self.walk_definitions()
@@ -254,15 +285,15 @@ class Walk:
                                          f"hands its argument {arguments[register]} on at {address:06X}")
                 grown = True
 
-    def call_site(self, position, address, maker):
-        """The definition a call of make_animated_object, or of a function that hands it on, gets, where the code
-        says which"""
-        argument = self.makers[maker][0]
-        how = "passed" if maker == MAKE_ANIMATED_OBJECT else f"passed to {maker:06X}"
+    def passed(self, position, argument):
+        """[(address, table)] of what the call at 'position' gets as its stack argument 'argument', where the code
+        says which: "pea ADDRESS.l" (table None), or each of the four entries of a table by the level
+        ("movea.l #TABLE, A0" then "move.l (A0,Dn.w), -(A7)")"""
+        found = []
         for push in self.pushes(position, argument) or ():
             source = push.operands[0]
             if push.mnemonic == "pea" and source.mode == "abs_long":
-                self.definitions.setdefault(source.value & 0xFFFFFF, f"{how} at {address:06X}")
+                found.append((source.value & 0xFFFFFF, None))
                 continue
             if push.mnemonic != "move" or source.mode != "index":
                 continue
@@ -271,10 +302,52 @@ class Walk:
             if loader is not None and loader.mnemonic == "movea" and loader.operands[0].mode == "immediate" \
                     and loader.operands[1].reg == source.reg:
                 table = loader.operands[0].value & 0xFFFFFF
-                for index in range(LEVELS):
-                    self.definitions.setdefault(long_at(self.image, table + 4 * index),
-                                                f"entry {index} of {table:06X}, {how} at {address:06X}")
-                self.level_tables[table] = f"indexed by the level, {how} at {address:06X}"
+                found.extend((long_at(self.image, table + 4 * index), table) for index in range(LEVELS))
+        return found
+
+    def call_site(self, position, address, maker):
+        """The definition a call of make_animated_object, or of a function that hands it on, gets, where the code
+        says which"""
+        how = f"{'passed' if maker == MAKE_ANIMATED_OBJECT else f'passed to {maker:06X}'} at {address:06X}"
+        for definition, table in self.passed(position, self.makers[maker][0]):
+            if table is None:
+                self.definitions.setdefault(definition, how)
+            else:
+                index = next(index for index in range(LEVELS) if long_at(self.image, table + 4 * index) == definition)
+                self.definitions.setdefault(definition, f"entry {index} of {table:06X}, {how}")
+                self.level_tables[table] = f"indexed by the level, {how}"
+
+    def tileset_load(self, position, address, loader):
+        """The tiles a call of one of the loaders gets, where the code says which"""
+        kind, argument = TILE_LOADERS[loader]
+        how = f"passed to {loader:06X} at {address:06X}"
+        for tiles, table in self.passed(position, argument):
+            if table is not None:
+                self.tileset_tables[table] = f"indexed by the level, {how}"
+            self.add_tileset(tiles, kind, how if table is None else f"an entry of {table:06X}, {how}")
+
+    def add_tileset(self, address, kind, found):
+        """Tiles as the loader of 'kind' reads them; the walk stops where they do not read so"""
+        if address in self.tilesets:
+            return
+        image = self.image
+        if kind == "word" and struct.unpack_from(">h", image, address)[0] > 0:
+            kind, size = "raw tiles", 2 + 32 * struct.unpack_from(">h", image, address)[0]
+        elif kind == "ssc":
+            result = compression.ssc_decode(image, address)
+            if result.unwritten or len(result.data) != 32 * result.tiles:
+                raise SystemExit(f"{address:06X} ({found}): no SSC tiles (it gives {len(result.data)} bytes for "
+                                 f"{result.tiles} tiles, {len(result.unwritten)} reads of the window not written)")
+            kind, size = "SSC tiles", result.size
+        else:
+            start = address + 2 if kind == "word" else address
+            result = compression.c2_decode(image, start)
+            if result.codes[0] != compression.C2_RESTART or result.most_entries > compression.C2_LAST_ENTRY + 1:
+                raise SystemExit(f"{address:06X} ({found}): no C2 tiles")
+            kind, size = ("C2 tiles after a word" if kind == "word" else "C2 tiles"), start - address + result.size
+        if (address + size) & 1 and image[address + size] == TILESET_PAD:
+            size += 1
+        self.tilesets[address] = (kind, size, found)
 
     def sprite_table_store(self, instructions, position, address, instruction):
         operands = instruction.operands
@@ -473,6 +546,12 @@ class Walk:
             found[address] = (address + step.length, "animation step")
         for address, (_, _, size, _) in self.sprite_tables.items():
             found[address] = (address + size, "sprite table")
+        for address, (kind, size, _) in self.tilesets.items():
+            found[address] = (address + size, kind)
+        for table in self.tileset_tables:
+            found[table] = (table + 4 * LEVELS, "tilesets by level")
+        if any(kind.startswith("C2") for kind, _, _ in self.tilesets.values()):
+            found[compression.C2_MASKS] = (compression.C2_MASKS + C2_MASKS_SIZE, "C2 code masks")
         return found
 
 
@@ -507,7 +586,10 @@ def check_reads(walk, folder):
     walked = set(step_bytes)
     for first, (stop, kind) in walk.spans().items():
         walked.update(range(first, stop))
-    engine, others = defaultdict(set), defaultdict(set)
+    for address, (kind, size, _) in walk.tilesets.items():
+        if kind.startswith("C2"):
+            walked.update(range(address + size, address + size + C2_READ_PAST))
+    by_reader, others = defaultdict(lambda: defaultdict(set)), defaultdict(set)
     for path in glob.glob(str(Path(folder) / "**" / "rom_reads.txt"), recursive=True):
         for line in open(path, encoding="ascii"):
             if line.startswith("#") or not line.strip():
@@ -515,18 +597,22 @@ def check_reads(walk, folder):
             pc, span = line.split()
             first, last = (int(value, 16) for value in span.split("-"))
             pc = int(pc, 16)
+            reader = next((name for name, (start, stop) in READERS.items() if start <= pc < stop), None)
             for address in range(first, last + 1):
-                (engine if ANIMATION_ENGINE[0] <= pc < ANIMATION_ENGINE[1] else others)[address].add(pc)
-    missing = sorted(set(engine) - walked)
-    runs = []
-    for address in missing:
-        if runs and address - runs[-1][1] <= 2:
-            runs[-1][1] = address
-        else:
-            runs.append([address, address])
+                (by_reader[reader] if reader else others)[address].add(pc)
+    for reader in READERS:
+        read = by_reader[reader]
+        missing = sorted(set(read) - walked)
+        runs = []
+        for address in missing:
+            if runs and address - runs[-1][1] <= 2:
+                runs[-1][1] = address
+            else:
+                runs.append([address, address])
+        print(f"read by the {reader}: {len(read)} bytes; not walked: {len(missing)} in {len(runs)} runs"
+              + ("\n  " + " ".join(f"{first:06X}-{last:06X}" for first, last in runs[:40]) if runs else "")
+              + (" ..." if len(runs) > 40 else ""))
     steps_read = {address for address in step_bytes if address in others}
-    print(f"read by the animation engine: {len(engine)} bytes; not walked: {len(missing)} in {len(runs)} runs")
-    print("  " + " ".join(f"{first:06X}-{last:06X}" for first, last in runs[:40]) + (" ..." if len(runs) > 40 else ""))
     print(f"walked animation bytes other code reads: {len(steps_read)}"
           + ("  " + " ".join(f"{address:06X}" for address in sorted(steps_read)[:20]) if steps_read else ""))
 
@@ -549,6 +635,8 @@ def main():
           f"{len(walk.animations)} ({len(walk.steps)} steps)")
     for function, (argument, found) in sorted(walk.makers.items()):
         print(f"maker {function:06X} {names.get(function, '')}: the definition is its argument {argument} ({found})")
+    for address, (kind, size, found) in sorted(walk.tilesets.items()):
+        print(f"{address:06X}-{address + size - 1:06X} {names.get(address, '?'):28} {kind} ({found})")
     for table, (objects, found) in sorted(walk.object_tables.items()):
         print(f"table objects {table:06X}: {objects} ({found})")
     for table, (entries, found) in sorted(walk.animation_lists.items()):

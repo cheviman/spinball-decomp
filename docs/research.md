@@ -77,8 +77,15 @@ also exists.
 - **Graphics**: sprites are stored as linear 4bpp bitmaps cut in pieces of up to 32x32, loaded into VRAM by
   an allocator while the game runs **(to verify: how they are converted to tiles and sent, CPU or DMA)**;
   levels are 8x8 tiles grouped into 32x32 brushes; rings have their own code and structures.
-- Compression: **SSC** (an LZSS variant) for tilesets, **C2** (an LZW variant, 9 to 12-bit codes) for the
-  intro, menus and bonus stages.
+- Compression: **SSC** (an LZSS) for the tables' tiles, the HUD's and the options'; **C2** (an LZW of 9 to
+  11-bit codes, not 12: the decoder at 0F5A7A stops widening at 11; its masks' table at 09BCD2 has a fourth word,
+  FFF, it never reads) for the cutscenes, the main menu and the bonus stages. Both are read from the game's
+  decoders in `tools/spinball_compression.py`, with encoders that give all 18 sets back byte for byte: SSC is the
+  LZSS of Mark Nelson's *The Data Compression Book* (1991: 12-bit place, 4-bit length, break even 1, 17 bytes
+  looked ahead, place 0 unused and the end, the first byte at place 1, its binary tree) written in the bytes of
+  Okumura's LZSS.C (a byte of flags, the place's low byte, its high four bits over the length); C2 is a plain
+  greedy LZW that starts over once entry 7FF is taken. SonicSpintool (2026) has an SSC decoder but its encoder
+  stores every byte as it is; its C2 encoder searches for the smallest output, not the original's.
 - Options at 0xFF035E: players (1–4), SPEED (normal/fast: changes the force of collisions, 0xFFF8D8 = 0x0E or
   0x13, not the simulation speed), music, flipper buttons.
 

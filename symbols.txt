@@ -31,6 +31,14 @@
 # long at +4 of the first (0E1F5C-0E1FC4); and its end (0E1FC6-0E1FDE)
 0E1F5C  func  make_animated_object_kept
 0E1FC6  func  end_animated_object_kept
+# the tile loaders (tools/spinball_compression.py; tools/data_walk.py reads what the code hands them): SSC into
+# the VRAM's tile the second argument says (0D6B88-0D6C28); a word, then that many tiles as they are, or C2 when
+# it is 0 or less, into VRAM 0 (0F3BB8-0F3C04); C2 into the VRAM's address the first argument says (0F5A5E-0F5A78),
+# both through the C2 decoder (0F5A7A-0F5B9C: the data at A1, the VRAM's address at A0)
+0D6B88  func  load_ssc_tiles
+0F3BB8  func  load_tiles
+0F5A5E  func  load_c2_tiles
+0F5A7A  func  decode_c2_tiles
 
 # ======== functions reached only through data ========
 
@@ -75,3 +83,30 @@
 020666  data  lava_powerhouse_sprites
 02B7A4  data  the_machine_sprites
 0318EE  data  showdown_sprites
+
+# the tiles (tools/data_walk.py finds them from the code that hands them to the loaders; assets/tilesets). A
+# table's own tiles go to plane A, its background's to plane B after them (the reference's VRAM in the four
+# scenarios: plane A at C000 shows only the first, plane B at E000 only the second)
+0394AA  data  toxic_caves_tiles
+03DBB2  data  toxic_caves_background_tiles
+04FEE4  data  showdown_tiles
+053214  data  showdown_background_tiles
+064BB6  data  lava_powerhouse_tiles
+067672  data  lava_powerhouse_background_tiles
+07DA22  data  hud_tiles
+07F29C  data  the_machine_tiles
+081EB6  data  the_machine_background_tiles
+# loaded by the main menu (0F2E26, at 0F2E7E); the HUD's by 0DF7A6 (at 0DF83A). The names of the code that loads
+# these and the next come from Eggplant891's spindisasm (MainMenu_Run, ArtSSC_HUD, IntroCutscene_SegaLogo...)
+09D102  data  main_menu_tiles
+# loaded by the Sega logo, the prologue, Mount Mobius and the ending (0F259C, 0F2CC8, 0F2688, 0F5BD0)
+0A3124  data  cutscene_tiles
+# loaded by the options screen (0FEDB4, 0FF1A2, 0FF2E4)
+0BDD2E  data  options_tiles
+# the bonus stage's (0FA7A8, 0FA7C2: VRAM 0, then the next tile), then the one of the four FF3CBC picks (0FA7FE-0FA826)
+0C77B0  data  bonus_stage_tiles
+0C9016  data  bonus_stage_more_tiles
+0CB14E  data  bonus_stage_0_tiles
+0CC710  data  bonus_stage_2_tiles
+0CF2DE  data  bonus_stage_3_tiles
+0D10B0  data  bonus_stage_1_tiles

@@ -26,13 +26,16 @@ As of 2026-11-13:
 - [x] Control scripts for the four tables (`tests/controls/`): the level select's flag on and the table's
       button held at the start, then a fixed pattern of flippers and moves
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
-      calls in `tools/spinball_analysis.py`): 47,389 instructions in 418 functions, and every one of the 17,399 addresses the four scenarios
-      execute is found; six functions reached only through data are in `symbols.txt` with how they were found
-- [x] The cartridge's bytes classified: 16.4% code, 22.2% described data, 0.4% unknown; the rest is data the
+      calls in `tools/spinball_analysis.py`): 47,643 instructions in 430 functions, and every one of the 17,399 addresses the four scenarios
+      execute is found; the 14 functions reached only through data are in `symbols.txt` with how they were found
+- [x] The cartridge's bytes classified: 16.4% code, 37.9% described data, 1.3% unknown; the rest is data the
       code reads or points at, waiting for its formats
 - [x] The uncompressed sprites: their format read from the code (`0D7D02`-`0D7FB0`), the six tables walked
       from where the code hands them over (`tools/data_walk.py`), and the 457 sprites extracted as one sheet
       per table that builds back into the cartridge's bytes exactly (`tools/extract_assets.py --check`)
+- [x] The animations and the tables' objects walked from the code; the tiles: SSC (an LZSS: Mark Nelson's tree
+      and Okumura's bytes) and C2 (an LZW of 9 to 11 bits) read from the game's decoders, with encoders that give
+      every one of the 18 sets back byte for byte, extracted as PNG sheets (`tools/spinball_compression.py`)
 - [ ] The data with names and types, and the assets as editable files that build back byte for byte: sprites
       and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
       the GEMS music and samples

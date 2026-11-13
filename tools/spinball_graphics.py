@@ -189,3 +189,36 @@ def sprites_from_sheet(rows, layout):
             built.append(Piece(x, y, width, height, pens))
         sprites.append(Sprite(built))
     return sprites
+
+
+# ---- tiles ----
+
+TILE_SIZE = 8               # pixels a side
+TILE_BYTES = 32             # 8 rows of 4 bytes, two pixels a byte, the left one in the high nibble
+TILES_ACROSS = 16           # a tile sheet's tiles a row
+
+
+def tiles_sheet(data):
+    """The rows of pens of a sheet of the tiles in 'data' (TILES_ACROSS a row; a last tile cut short is drawn
+    with pen 0 where it has no bytes)"""
+    count = (len(data) + TILE_BYTES - 1) // TILE_BYTES
+    rows = [[0] * (TILES_ACROSS * TILE_SIZE) for _ in range(((count + TILES_ACROSS - 1) // TILES_ACROSS) * TILE_SIZE)]
+    for index, value in enumerate(data):
+        tile, inside = divmod(index, TILE_BYTES)
+        row, column = divmod(inside, TILE_SIZE // 2)
+        y = (tile // TILES_ACROSS) * TILE_SIZE + row
+        x = (tile % TILES_ACROSS) * TILE_SIZE + 2 * column
+        rows[y][x], rows[y][x + 1] = value >> 4, value & 15
+    return rows
+
+
+def tiles_from_sheet(rows, size):
+    """The first 'size' bytes of the tiles a sheet's rows of pens hold"""
+    data = bytearray()
+    for index in range(size):
+        tile, inside = divmod(index, TILE_BYTES)
+        row, column = divmod(inside, TILE_SIZE // 2)
+        y = (tile // TILES_ACROSS) * TILE_SIZE + row
+        x = (tile % TILES_ACROSS) * TILE_SIZE + 2 * column
+        data.append(rows[y][x] << 4 | rows[y][x + 1])
+    return bytes(data)
