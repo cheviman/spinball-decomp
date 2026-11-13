@@ -41,3 +41,17 @@
 # add a node; mdref --jumps: 0F62D4 -> 0F43E0, 0F4492
 0F43E0  func  vblank_task_0F43E0
 0F4492  func  vblank_task_0F4492
+
+# ======== data ========
+
+# the sprite tables (tools/spinball_graphics.py; the loader at 0D7D02 reads one through what an object's field 3A
+# points at, field 0A). tools/data_walk.py finds the ones the code stores there itself (0E5F46 $E47A, 0EB454
+# $318EE, 0EE3C2 $2B7A4); all six are held by the sprite descriptors from 0C0AC4 (8 bytes each: the table, then two
+# words an object's fields 1E and 20 take), which the code that makes an animated object reads through its
+# definition (0D5FD2-0D604A), a walk still to write. The names say what each sheet shows (assets/sprites).
+0013DC  data  sonic_sprites
+00E47A  data  common_sprites
+012B0C  data  toxic_caves_sprites
+020666  data  lava_powerhouse_sprites
+02B7A4  data  the_machine_sprites
+0318EE  data  showdown_sprites

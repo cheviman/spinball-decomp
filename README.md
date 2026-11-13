@@ -28,10 +28,11 @@ As of 2026-11-13:
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
       calls in `tools/spinball_analysis.py`): 47,389 instructions in 418 functions, and every one of the 17,399 addresses the four scenarios
       execute is found; six functions reached only through data are in `symbols.txt` with how they were found
-- [x] The cartridge's bytes classified: 16.4% code, 0.4% described data, 0.4% unknown; the rest is data the
+- [x] The cartridge's bytes classified: 16.4% code, 22.2% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats
-- [x] The uncompressed sprites' format read from the code (`0D7D02`-`0D7FB0`): six tables, 457 sprites,
-      every byte of 0013DC-03909D accounted for
+- [x] The uncompressed sprites: their format read from the code (`0D7D02`-`0D7FB0`), the six tables walked
+      from where the code hands them over (`tools/data_walk.py`), and the 457 sprites extracted as one sheet
+      per table that builds back into the cartridge's bytes exactly (`tools/extract_assets.py --check`)
 - [ ] The data with names and types, and the assets as editable files that build back byte for byte: sprites
       and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
       the GEMS music and samples
@@ -125,9 +126,22 @@ build/                 builds, listings, scenario runs (not in the repository)
 
 ## The assets
 
-Not extracted yet. They will come out of your cartridge into `assets/` (not in the repository) as files that
-common tools open (indexed PNG sheets by object and by tileset, text for the data, MIDI and WAV for the sound),
-and build back into the cartridge's bytes exactly (`--check`).
+They come out of your cartridge into `assets/` (not in the repository) as files that common tools open, and
+build back into the cartridge's bytes exactly:
+
+```bash
+python tools/extract_assets.py
+```
+
+```bash
+python tools/extract_assets.py --check
+```
+
+So far: `assets/sprites/`, a 4-bit indexed PNG sheet per sprite table (Sonic, the common sprites, and each
+table's own), each sprite drawn whole, and `sprites.txt` with where each sprite and its pieces are. The colours
+are grey levels by pen until the palettes the game shows them with are known. Still to come: the tilesets (SSC and
+LZW compressed), the levels and their collision, the objects and their animations, the palettes, the texts, and
+the GEMS music and samples.
 
 ## Legal
 

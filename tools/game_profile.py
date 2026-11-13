@@ -30,3 +30,4 @@ REFERENCE = "mdref"                             # the reference (tools/console/m
 ANALYSIS = "spinball_analysis"                  # the core's 68000 analysis with this compiler's ways (tools/spinball_analysis.py)
 DISASSEMBLER = "m68000.disassembler"
 CODE_START = 0x000200                           # after the vectors (000000-0000FF) and the header (000100-0001FF)
+DATA_WALK = "data_walk"                         # the data the engines take, walked (tools/data_walk.py: sprite tables)
