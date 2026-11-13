@@ -22,6 +22,15 @@
 # makes an animated object from a definition (its first argument: tools/data_walk.py reads what the code hands it),
 # at a place and with flags (0D5F16-0D60E0)
 0D5F16  func  make_animated_object
+# the animated object of a game object (the first argument: FF784C on, 34 bytes each), from a definition (the
+# second), at the object's place (fields 12, 14), unless its field 0 already keeps one (0E1ECA-0E1F46); and its end
+# (field 22 bit 15 of the animated object, field 0 cleared: 0E1F48-0E1F5A)
+0E1ECA  func  make_object_animated
+0E1F48  func  end_object_animated
+# an animated object from a definition (the second argument) at the place the third and fourth give, kept in the
+# long at +4 of the first (0E1F5C-0E1FC4); and its end (0E1FC6-0E1FDE)
+0E1F5C  func  make_animated_object_kept
+0E1FC6  func  end_animated_object_kept
 
 # ======== functions reached only through data ========
 

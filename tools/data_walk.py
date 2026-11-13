@@ -1,7 +1,8 @@
 """
 Name:        data_walk.py
 Description: Sonic the Hedgehog Spinball's data the code hands to its engines, walked from where it hands it over:
-             the animated objects' definitions, their sprite descriptors, the sprite tables and the animations
+             the animated objects' definitions, their sprite descriptors, the sprite tables, the animations and
+             the tables' objects
 Version:     0.1.0
 Created:     13-11-2026
 Modified:    13-11-2026
@@ -14,10 +15,14 @@ engine read in the scenarios' runs that the walk does not have, and what it has 
   definition     what make_animated_object (0D5F16) takes as its first argument, 12 bytes: the address of a
                  sprite descriptor, the address of the object's animation (its field 0), a byte its field 28 takes,
                  a byte its fields 2A and 2B take, and a word it ors into its field 22 (0D5F6C-0D5F94, 0D5FC8).
-                 Found where the code passes one: "pea DEFINITION.l" just before the call (63 calls), or an entry
-                 of a table it indexes by the current level (FF75B0, 0-3: 0DDE70, 0DDF14-0DDF1E "move.l
-                 (A0,D0.w), -(A7)" with A0 the table), four entries; or the long of an animation's command 0C.
-                 The definitions the level's objects hand over (their field 18) are not walked yet.
+                 Found where the code passes one, to make_animated_object or to a function that hands one of its
+                 own arguments on to it as the definition (a maker: 0E1ECA and 0E1F5C, their second; found from
+                 the code, the register the function's prologue loads from its stack arguments pushed as the
+                 definition, and nothing writing it on the way), back from the call a push at a time, through the
+                 jumps and branches that come in among the pushes: "pea DEFINITION.l" as that argument, or an
+                 entry of a table the code indexes by the current level (FF75B0, 0-3: 0DDE70, 0DDF14-0DDF1E
+                 "move.l (A0,D0.w), -(A7)" with A0 the table, "movea.l #TABLE, A0" just before), four entries;
+                 the long of an animation's command 0C; or the long of a table's object (below).
   descriptor     what a definition's first long points at, 8 bytes: the sprite table, then two words the object's
                  fields 1E and 20 take (0D5FD2-0D5FDC, 0D6048-0D604A).
   sprite table   a descriptor's first long, which the sprite loader (0D7D02) reads (tools/spinball_graphics.py);
@@ -39,6 +44,13 @@ engine read in the scenarios' runs that the walk does not have, and what it has 
                  (0E1ADE-0E1AF4: the four tables' lists). A list's entries go on while each is the address of an
                  animation that walks whole (a step of its object's sprites: as many as the biggest table has),
                  and stop at one that is not, or where something walked begins.
+  table objects  a table's objects, 20 bytes each, which the code that sets the table up copies one by one into
+                 a game object (the one the record's second byte numbers, from FF784C, 34 bytes each), at its byte
+                 0E: a type, a number, a word, x, y, two bytes, the definition of its animated object (field 18,
+                 0 for none: 0E4E34 "tst.l ($18,A2)", then make_animated_object), and six bytes. Found where the
+                 code does it: "movea.l #TABLE, A0; lea (A0,D0.w), A0; movea.l A0, An", then a loop that moves An
+                 on by 20 until "cmpi.w #COUNT, Dn; blt" (Toxic Caves 0E626C, 173; Lava Powerhouse 0E4DFC, 211;
+                 Showdown 0E9E7E, 186; The Machine 0F10EE, 158).
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -56,8 +68,12 @@ import spinball_animation as animation  # noqa: E402
 import spinball_graphics as graphics  # noqa: E402
 
 MAKE_ANIMATED_OBJECT = 0x0D5F16     # takes a definition first
+SCRATCH = {"D0", "D1", "A0", "A1"}  # the registers a call of the game's C does not keep
+PUSHES_WALKED = 64                  # how far back from a call its pushes are looked for
 LEVELS = 4                          # the tables the game has: what a table indexed by the level holds
 DEFINITION_SIZE = 12
+TABLE_OBJECT_SIZE = 20              # a table's object, as the code that sets the table up copies it
+TABLE_OBJECT_DEFINITION = 0x0A      # its definition's long
 DESCRIPTOR_SIZE = 8
 SPRITE_LINK_FIELD = 0x3A            # an object's link to the structure that holds its sprite table
 SPRITE_TABLE_FIELD = 0x0A           # that structure's sprite table
@@ -66,6 +82,36 @@ ANIMATION_ENGINE = (0x0D58B0, 0x0D60E2)     # the code that reads animations (fo
 
 def long_at(image, address):
     return struct.unpack_from(">I", image, address)[0] & 0xFFFFFF
+
+
+def pushes_long(instruction):
+    """Whether an instruction pushes a long onto the stack: pea, or move.l / clr.l to -(A7)"""
+    operands = instruction.operands
+    return instruction.mnemonic == "pea" or (
+        instruction.mnemonic in ("move", "clr") and instruction.size == "l" and operands
+        and operands[-1].mode == "predec" and operands[-1].reg == "A7")
+
+
+def moves_stack(instruction):
+    """Whether an instruction moves the stack pointer otherwise (another push or pop, or A7 written)"""
+    return instruction.flow in ("call", "return") or any(
+        operand.reg == "A7" and operand.mode in ("predec", "postinc", "areg") for operand in instruction.operands)
+
+
+def writes(instruction, register):
+    """Whether an instruction can change 'register'"""
+    operands = instruction.operands
+    if any(operand.mode in ("predec", "postinc") and operand.reg == register for operand in operands):
+        return True
+    if instruction.flow == "call":
+        return register in SCRATCH
+    if instruction.mnemonic in ("cmp", "cmpa", "cmpi", "tst", "btst") or not operands:
+        return False
+    if instruction.mnemonic == "exg":
+        return any(operand.reg == register for operand in operands)
+    last = operands[-1]
+    return (last.mode in ("areg", "dreg") and last.reg == register) \
+        or (last.mode == "reglist" and register in last.registers)
 
 
 class Walk:
@@ -85,18 +131,30 @@ class Walk:
         self.animation_lists = {}       # {address: (entries, how it was found)}
         self.list_tables = {}           # {address: how it was found}: tables of four lists, a level each
         self.anchors = set()            # places the code names: an animation that runs on ends there
+        self.object_tables = {}         # {address: (objects, how it was found)}
+        self.makers = {MAKE_ANIMATED_OBJECT: (0, "the engine")}     # {function: (its definition's argument, how)}
+        self.ordered = []               # [(address, Instruction)] of the analysis, in address order
+        self.position_of = {}           # {address: its position in ordered}
+        self.comes_from = defaultdict(list)     # {address: positions of the jumps and branches that go there}
 
     # ---- what the code hands over ----
 
     def run(self):
-        instructions = sorted(self.analysis.instructions.items())
+        instructions = self.ordered = sorted(self.analysis.instructions.items())
+        for position, (address, instruction) in enumerate(instructions):
+            self.position_of[address] = position
+            if instruction.flow in ("jump", "branch") and instruction.target is not None:
+                self.comes_from[instruction.target].append(position)
+        self.find_makers()
         lists = []
         for position, (address, instruction) in enumerate(instructions):
-            if instruction.target == MAKE_ANIMATED_OBJECT and instruction.flow == "call":
-                self.call_site(instructions, position, address)
+            if instruction.flow == "call" and instruction.target in self.makers:
+                self.call_site(position, address, instruction.target)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
-        self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables)             | {table for table, _ in lists} | set(self.sprite_tables)
+            self.object_table_load(instructions, position, address)
+        self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables) \
+            | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables)
         for instruction in self.analysis.instructions.values():
             self.anchors.update(place for place in data_places(instruction) if place < len(self.image))
         self.walk_definitions()
@@ -107,24 +165,116 @@ class Walk:
         for descriptor in sorted(self.descriptors):
             self.add_sprite_table(long_at(self.image, descriptor), f"descriptor {descriptor:06X}")
 
-    def call_site(self, instructions, position, address):
-        """The definition a call of make_animated_object hands over, where the code says which"""
-        previous = instructions[position - 1][1]
-        if previous.mnemonic == "pea" and previous.operands[0].mode == "abs_long":
-            self.definitions.setdefault(previous.operands[0].value & 0xFFFFFF, f"passed at {address:06X}")
-            return
-        operand = previous.operands[1] if len(previous.operands) == 2 else None
-        source = previous.operands[0] if previous.operands else None
-        if previous.mnemonic == "move" and source is not None and source.mode == "index" and operand is not None \
-                and operand.mode == "predec" and position >= 2:
-            loader = instructions[position - 2][1]
-            if loader.mnemonic == "movea" and loader.operands[0].mode == "immediate" \
+    def pushes(self, position, argument):
+        """The instructions that can push the stack argument 'argument' (0: the one pushed last) of the call at
+        'position': back from it a push at a time, through the jumps and branches that come in on the way; None
+        where the stack moves otherwise first, or the way back runs too long"""
+        found, seen, work = [], set(), [(position, argument)]
+        while work:
+            at, left = work.pop()
+            here = self.ordered[at][0]
+            before = list(self.comes_from.get(here, ()))
+            if at:
+                previous_address, previous = self.ordered[at - 1]
+                if previous_address + previous.length == here and previous.flow not in ("jump", "return"):
+                    before.append(at - 1)
+            for step in before:
+                if (step, left) in seen:
+                    continue
+                seen.add((step, left))
+                if len(seen) > PUSHES_WALKED:
+                    return None
+                instruction = self.ordered[step][1]
+                if instruction.flow in ("jump", "branch"):
+                    work.append((step, left))
+                elif pushes_long(instruction):
+                    if left:
+                        work.append((step, left - 1))
+                    else:
+                        found.append(instruction)
+                elif moves_stack(instruction):
+                    return None
+                else:
+                    work.append((step, left))
+        return found
+
+    def function_of(self, address):
+        """The start of the function an address is in: the last the analysis has at or before it"""
+        return max((start for start in self.analysis.functions if start <= address), default=None)
+
+    def prologue(self, function):
+        """(the position after it, {register: argument}) of what a function's prologue loads from its stack
+        arguments: "movem.l REGISTERS, -(A7)" (or one register's move.l) then "move(a).l (d,A7), Rn", one after
+        the other"""
+        position = self.position_of.get(function)
+        if position is None:
+            return None, {}
+        first = self.ordered[position][1]
+        saved = 0
+        if first.mnemonic == "movem" and first.operands[1].mode == "predec" and first.operands[1].reg == "A7":
+            saved, position = len(first.operands[0].registers), position + 1
+        elif pushes_long(first) and first.mnemonic == "move" and first.operands[0].mode in ("areg", "dreg"):
+            saved, position = 1, position + 1
+        arguments = {}
+        while position < len(self.ordered):
+            instruction = self.ordered[position][1]
+            operands = instruction.operands
+            if instruction.mnemonic not in ("move", "movea") or instruction.size != "l" or len(operands) != 2 \
+                    or operands[0].mode != "disp" or operands[0].reg != "A7" \
+                    or operands[1].mode not in ("areg", "dreg"):
+                break
+            arguments[operands[1].reg] = (operands[0].disp - 4 * saved - 4) // 4
+            position += 1
+        return position, arguments
+
+    def find_makers(self):
+        """The functions that hand one of their arguments on to make_animated_object (or to another such
+        function) as the definition: the register their prologue loads it into is what they push as the
+        definition, and nothing writes it from the prologue to the call"""
+        grown = True
+        while grown:
+            grown = False
+            for position, (address, instruction) in enumerate(self.ordered):
+                if instruction.flow != "call" or instruction.target not in self.makers:
+                    continue
+                pushes = self.pushes(position, self.makers[instruction.target][0])
+                if not pushes or any(push.mnemonic != "move" or push.operands[0].mode not in ("areg", "dreg")
+                                     for push in pushes):
+                    continue
+                registers = {push.operands[0].reg for push in pushes}
+                function = self.function_of(address)
+                if len(registers) != 1 or function is None or function in self.makers:
+                    continue
+                register = registers.pop()
+                after, arguments = self.prologue(function)
+                if after is None or register not in arguments or any(writes(self.ordered[step][1], register)
+                                                    for step in range(after, position)):
+                    continue
+                self.makers[function] = (arguments[register],
+                                         f"hands its argument {arguments[register]} on at {address:06X}")
+                grown = True
+
+    def call_site(self, position, address, maker):
+        """The definition a call of make_animated_object, or of a function that hands it on, gets, where the code
+        says which"""
+        argument = self.makers[maker][0]
+        how = "passed" if maker == MAKE_ANIMATED_OBJECT else f"passed to {maker:06X}"
+        for push in self.pushes(position, argument) or ():
+            source = push.operands[0]
+            if push.mnemonic == "pea" and source.mode == "abs_long":
+                self.definitions.setdefault(source.value & 0xFFFFFF, f"{how} at {address:06X}")
+                continue
+            if push.mnemonic != "move" or source.mode != "index":
+                continue
+            at = self.position_of[push.address]
+            loader = self.ordered[at - 1][1] if at else None
+            if loader is not None and loader.mnemonic == "movea" and loader.operands[0].mode == "immediate" \
                     and loader.operands[1].reg == source.reg:
                 table = loader.operands[0].value & 0xFFFFFF
                 for index in range(LEVELS):
                     self.definitions.setdefault(long_at(self.image, table + 4 * index),
-                                                f"entry {index} of {table:06X}, passed at {address:06X}")
-                self.level_tables[table] = f"indexed by the level at {address:06X}"
+                                                f"entry {index} of {table:06X}, {how} at {address:06X}")
+                self.level_tables[table] = f"indexed by the level, {how} at {address:06X}"
 
     def sprite_table_store(self, instructions, position, address, instruction):
         operands = instruction.operands
@@ -136,6 +286,38 @@ class Walk:
                     and previous.operands[0].mode == "disp" and previous.operands[0].disp == SPRITE_LINK_FIELD \
                     and previous.operands[1].reg == operands[1].reg:
                 self.add_sprite_table(operands[0].value & 0xFFFFFF, f"stored by {address:06X}")
+
+    def object_table_load(self, instructions, position, address):
+        """A table's objects where the code copies them: "movea.l #TABLE, A0; lea (A0,D0.w), A0; movea.l A0, An",
+        then a loop back to the next instruction that moves An on by 20 and ends at "cmpi.w #COUNT, Dn; blt" """
+        instruction = instructions[position][1]
+        if instruction.mnemonic != "movea" or instruction.operands[0].mode != "immediate" \
+                or position + 3 >= len(instructions):
+            return
+        lea, keep = instructions[position + 1][1], instructions[position + 2][1]
+        if lea.mnemonic != "lea" or lea.operands[0].mode != "index" or keep.mnemonic != "movea" \
+                or keep.operands[0].mode != "areg" or keep.operands[0].reg != lea.operands[1].reg:
+            return
+        loop, register = instructions[position + 3][0], keep.operands[1].reg
+        moves_by_20 = False
+        for later_position in range(position + 3, min(position + 600, len(instructions) - 1)):
+            later = instructions[later_position][1]
+            ops = later.operands
+            if later.mnemonic == "adda" and len(ops) == 2 and ops[1].mode == "areg" and ops[1].reg == register:
+                previous = instructions[later_position - 1][1]
+                moves_by_20 = moves_by_20 or (previous.mnemonic == "moveq"
+                                              and previous.operands[0].value == TABLE_OBJECT_SIZE)
+            branch = instructions[later_position + 1][1]
+            if later.mnemonic == "cmpi" and ops[0].mode == "immediate" and branch.mnemonic == "bcc" \
+                    and branch.condition == "lt" and branch.target == loop:
+                if moves_by_20:
+                    table = instruction.operands[0].value & 0xFFFFFF
+                    self.object_tables[table] = (ops[0].value, f"copied by the loop {loop:06X}-{later.address:06X}")
+                    for index in range(ops[0].value):
+                        definition = long_at(self.image, table + TABLE_OBJECT_SIZE * index + TABLE_OBJECT_DEFINITION)
+                        if definition:
+                            self.definitions.setdefault(definition, f"object {index} of the table {table:06X}")
+                return
 
     def animation_list_load(self, instructions, position, address):
         """[(list, how it was found)] for "movea.l #TABLE, An" whose entry, less 2, goes into an object's field
@@ -285,6 +467,8 @@ class Walk:
             found[table] = (table + 4 * LEVELS, "animation lists by level")
         for table, (entries, _) in self.animation_lists.items():
             found[table] = (table + 4 * entries, "animation list")
+        for table, (objects, _) in self.object_tables.items():
+            found[table] = (table + TABLE_OBJECT_SIZE * objects, "table objects")
         for address, step in self.steps.items():
             found[address] = (address + step.length, "animation step")
         for address, (_, _, size, _) in self.sprite_tables.items():
@@ -363,6 +547,10 @@ def main():
     names = {address: symbol.name for address, symbol in analysis.symbols.items()}
     print(f"definitions: {len(walk.definitions)}, sprite descriptors: {len(walk.descriptors)}, animations: "
           f"{len(walk.animations)} ({len(walk.steps)} steps)")
+    for function, (argument, found) in sorted(walk.makers.items()):
+        print(f"maker {function:06X} {names.get(function, '')}: the definition is its argument {argument} ({found})")
+    for table, (objects, found) in sorted(walk.object_tables.items()):
+        print(f"table objects {table:06X}: {objects} ({found})")
     for table, (entries, found) in sorted(walk.animation_lists.items()):
         print(f"animation list {table:06X}: {entries} entries ({found})")
     print("functions the animations call: " + " ".join(f"{function:06X} (step {step:06X})"
