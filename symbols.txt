@@ -31,6 +31,9 @@
 # long at +4 of the first (0E1F5C-0E1FC4); and its end (0E1FC6-0E1FDE)
 0E1F5C  func  make_animated_object_kept
 0E1FC6  func  end_animated_object_kept
+# a ring (its number, x, y: 0FE6C6), shown with the common sprites; the four tables' rings are the lists of 6 bytes
+# their set-up code walks into it (the forum's ring definitions of this area)
+0FE6C6  func  make_ring
 # the tile loaders (tools/spinball_compression.py; tools/data_walk.py reads what the code hands them): SSC into
 # the VRAM's tile the second argument says (0D6B88-0D6C28); a word, then that many tiles as they are, or C2 when
 # it is 0 or less, into VRAM 0 (0F3BB8-0F3C04); C2 into the VRAM's address the first argument says (0F5A5E-0F5A78),
@@ -196,3 +199,10 @@
 0D3CEC  data  fff8da_records
 0D3D0A  data  level_select_sequence
 0D3D28  data  options_sequence
+# each table's rings (number, x, y; walked into make_ring by its set-up code) and Toxic Caves' 27 places of the
+# animated objects of definition C0FE8 (0E6594-0E65D2)
+0C1D70  data  lava_powerhouse_rings
+0C37E8  data  toxic_caves_decorations
+0C3854  data  toxic_caves_rings
+0C49CC  data  showdown_rings
+0C60B2  data  the_machine_rings

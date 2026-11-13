@@ -335,7 +335,8 @@ class CodePatterns:
 
     def pointer_loop(self, position, address, instruction):
         """A table a loop walks from its start with a pointer: a counter cleared ("clr.w Dk" or "moveq #0, Dk")
-        just before, "movea.l #TABLE, An; lea (An,Dx.w), Ap" (maybe "movea.l Ap, Aq" after), then a loop that
+        just before, "movea.l #TABLE, An; lea (An,Dx.w), Ap" (maybe "movea.l Ap, Aq" after), or the table straight
+        into the pointer with the counter cleared right after ("movea.l #TABLE, Ap; clr.w Dk"), then a loop that
         moves the pointer on by what it reads with "(Ap)+" or adds to it ("addq", "adda"), and ends "addq.w #1,
         Dk; cmpi.w #N, Dk; blt" back, the index from that counter: N entries of that stride (a table of the
         cartridge), up to the next place the code names (a loop can move on past what it reads: 0FEEA4's six
@@ -345,12 +346,21 @@ class CodePatterns:
                 or position + 3 >= len(self.ordered) or operands[0].value & 0xFFFFFF >= len(self.image):
             return
         lea = self.ordered[position + 1][1]
-        if lea.mnemonic != "lea" or lea.operands[0].mode != "index" or lea.operands[0].reg != operands[1].reg:
+        direct = lea.mnemonic != "lea"
+        if direct:
+            # the table straight into the pointer, the counter cleared right after: "movea.l #TABLE, Ap; clr.w Dk"
+            pointer, at = operands[1].reg, position + 1
+            clear = self.ordered[at][1]
+            if clear.mnemonic not in ("clr", "moveq") or clear.operands[-1].mode != "dreg":
+                return
+            at += 1
+        elif lea.operands[0].mode != "index" or lea.operands[0].reg != operands[1].reg:
             return
-        pointer, at = lea.operands[1].reg, position + 2
-        keep = self.ordered[at][1]
-        if keep.mnemonic == "movea" and keep.operands[0].mode == "areg" and keep.operands[0].reg == pointer:
-            pointer, at = keep.operands[1].reg, at + 1
+        else:
+            pointer, at = lea.operands[1].reg, position + 2
+            keep = self.ordered[at][1]
+            if keep.mnemonic == "movea" and keep.operands[0].mode == "areg" and keep.operands[0].reg == pointer:
+                pointer, at = keep.operands[1].reg, at + 1
         for end in range(at, min(at + LOOP_WALKED, len(self.ordered) - 2)):
             compare, branch = self.ordered[end][1], self.ordered[end + 1][1]
             if compare.mnemonic != "cmpi" or compare.size != "w" or compare.operands[1].mode != "dreg" \
@@ -358,10 +368,12 @@ class CodePatterns:
                     or not self.ordered[at][0] <= branch.target <= compare.address:
                 continue
             counter = compare.operands[1].reg
-            index = lea.operands[0].index
-            if not self.cleared_before(position, counter) or (index != counter and not any(
+            if direct:
+                if self.ordered[position + 1][1].operands[-1].reg != counter:
+                    return
+            elif not self.cleared_before(position, counter) or (lea.operands[0].index != counter and not any(
                     step.mnemonic == "move" and step.operands[0].mode == "dreg" and step.operands[0].reg == counter
-                    and step.operands[1].reg == index
+                    and step.operands[1].reg == lea.operands[0].index
                     for step in (self.ordered[back][1] for back in range(max(position - 8, 0), position)))):
                 return
             first = self.position_of[branch.target]

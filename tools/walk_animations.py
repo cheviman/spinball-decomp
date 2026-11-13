@@ -43,7 +43,8 @@ Author:      Sebastian Toyos
   table objects  a table's objects, 20 bytes each, which the code that sets the table up copies one by one into
                  a game object (the one the record's second byte numbers, from FF784C, 34 bytes each), at its byte
                  0E: a type, a number, a word, x, y, two bytes, the definition of its animated object (field 18,
-                 0 for none: 0E4E34 "tst.l ($18,A2)", then make_animated_object), and six bytes. Found where the
+                 0 for none: 0E4E34 "tst.l ($18,A2)", then make_animated_object), the address of its box (field
+                 1C, 0 for none: x0, y0, x1, y1 from its place, 8 bytes, 0E51EA-0E520E), and two bytes. Found where the
                  code does it: "movea.l #TABLE, A0; lea (A0,D0.w), A0; movea.l A0, An", then a loop that moves An
                  on by 20 until "cmpi.w #COUNT, Dn; blt" (Toxic Caves 0E626C, 173; Lava Powerhouse 0E4DFC, 211;
                  Showdown 0E9E7E, 186; The Machine 0F10EE, 158).
@@ -62,6 +63,8 @@ MAKE_ANIMATED_OBJECT = 0x0D5F16     # takes a definition first
 DEFINITION_SIZE = 12
 TABLE_OBJECT_SIZE = 20              # a table's object, as the code that sets the table up copies it
 TABLE_OBJECT_DEFINITION = 0x0A      # its definition's long
+TABLE_OBJECT_BOX = 0x0E             # its box's long (the game object's field 1C: 0E51EA)
+OBJECT_BOX_SIZE = 8                 # x0, y0, x1, y1 from the object's place (0E51F4-0E520E)
 DESCRIPTOR_SIZE = 8
 SPRITE_LINK_FIELD = 0x3A            # an object's link to the structure that holds its sprite table
 SPRITE_TABLE_FIELD = 0x0A           # that structure's sprite table
@@ -82,6 +85,7 @@ class AnimationWalk:
         self.animation_lists = {}       # {address: (entries, how it was found)}
         self.list_tables = {}           # {address: how it was found}: tables of four lists, a level each
         self.object_tables = {}         # {address: (objects, how it was found)}
+        self.object_boxes = {}          # {address: how it was found}
         self.makers = {MAKE_ANIMATED_OBJECT: (0, "the engine")}     # {function: (its definition's argument, how)}
 
     def find_makers(self):
@@ -164,6 +168,11 @@ class AnimationWalk:
                         definition = long_at(self.image, table + TABLE_OBJECT_SIZE * index + TABLE_OBJECT_DEFINITION)
                         if definition:
                             self.definitions.setdefault(definition, f"object {index} of the table {table:06X}")
+                        box = long_at(self.image, table + TABLE_OBJECT_SIZE * index + TABLE_OBJECT_BOX)
+                        if box:
+                            if box + OBJECT_BOX_SIZE > len(self.image):
+                                raise SystemExit(f"object {index} of the table {table:06X}: a box at {box:06X}")
+                            self.object_boxes.setdefault(box, f"object {index} of the table {table:06X}")
                 return
 
     def animation_list_load(self, instructions, position, address):
@@ -314,6 +323,8 @@ class AnimationWalk:
             found[table] = (table + 4 * entries, "animation list")
         for table, (objects, _) in self.object_tables.items():
             found[table] = (table + TABLE_OBJECT_SIZE * objects, "table objects")
+        for box in self.object_boxes:
+            found.setdefault(box, (box + OBJECT_BOX_SIZE, "object box"))
         for address, step in self.steps.items():
             found[address] = (address + step.length, "animation step")
         for address, (_, _, size, _) in self.sprite_tables.items():
