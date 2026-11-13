@@ -27,15 +27,6 @@ CPU = "68000"
 BINARY = "spinball"                             # its executables
 GUARD = "SPINBALL"                              # the generated headers' include guards
 REFERENCE = "mdref"                             # the reference (tools/console/megadrive/reference)
-ANALYSIS = "m68000.analysis"                    # the static analysis and the disassembler of the 68000
+ANALYSIS = "spinball_analysis"                  # the core's 68000 analysis with this compiler's ways (tools/spinball_analysis.py)
 DISASSEMBLER = "m68000.disassembler"
 CODE_START = 0x000200                           # after the vectors (000000-0000FF) and the header (000100-0001FF)
-# the C compiler's switches: a jump through a table of words relative to the table (core/m68000/analysis.py;
-# main at 0D5230: "move.w $D52C2(PC,D0.l), D0", "jmp $D52C2(PC,D0.w)" after "moveq #6, D1; cmp.l D1, D0; bhi")
-SWITCH_TABLES = True
-# the front end's sequencer jumps through a table of addresses read relative to the PC (0F4562 "movea.l
-# $F459A(PC,D0.w), A0", 0F4566 "jmp (A0)"; core/m68000/analysis.py)
-PC_TABLES = True
-# a call through a register that holds known functions keeps what they all keep (0F2F96 keeps $F3148 in A2 across
-# its calls through A3 and A4; core/m68000/analysis.py)
-KNOWN_CALL_TARGETS = True

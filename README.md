@@ -26,7 +26,7 @@ As of 2026-11-13:
 - [x] Control scripts for the four tables (`tests/controls/`): the level select's flag on and the table's
       button held at the start, then a fixed pattern of flippers and moves
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
-      calls): 47,389 instructions in 418 functions, and every one of the 17,399 addresses the four scenarios
+      calls in `tools/spinball_analysis.py`): 47,389 instructions in 418 functions, and every one of the 17,399 addresses the four scenarios
       execute is found; six functions reached only through data are in `symbols.txt` with how they were found
 - [x] The cartridge's bytes classified: 16.4% code, 0.4% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats
@@ -54,7 +54,7 @@ Requirements: Python 3.10 or newer, CMake 3.20 or newer, and a C11 / C++20 compi
 on Windows).
 
 1. Clone with the submodules (`tools/core` is [arcade-decomp](https://github.com/cheviman/arcade-decomp)'s
-   `spinball` branch, `tools/console` is console-decomp):
+   `simpsons` branch, which has the 68000's decompiler; `tools/console` is console-decomp):
 
    ```bash
    git clone --recursive https://github.com/cheviman/spinball-decomp
@@ -113,7 +113,8 @@ cannot work out, each with how it was found) and `tools/game_profile.py` (the se
 symbols.txt            the program's names and what the analysis cannot see by itself
 runtime/               the game's side of the runtime: its cartridge (rom_set.c)
 tests/controls/        control scripts: the scenarios the reference and the game run
-tools/                 the game's tools: its profile, its cartridge's module, the core's scripts for it
+tools/                 the game's tools: its profile, its cartridge's module, the core's scripts for it, and
+                       spinball_analysis.py (what this game's compiler does that the core's analysis does not follow)
 tools/core/            arcade-decomp (submodule): the decompiler, the 68000's frontend and analysis
 tools/console/         console-decomp (submodule): the Mega Drive in C and mdref
 docs/                  research.md (what is known of the game), plan.md, performance.md
