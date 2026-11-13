@@ -18,8 +18,12 @@ Writes the assets (none of them goes into the repository):
   tilesets/ the tiles tools/data_walk.py walks (SSC, C2 and as they are), a sheet each (NAME.png, by symbols.txt's
             name): 4-bit indexed PNGs, 16 tiles a row, greys by pen like the sprites; tilesets.txt says per sheet
             how its tiles are kept and what else gives the cartridge's bytes back (tools/spinball_compression.py).
-With --check, every table and tileset is built from its sheet and its text and compared with the cartridge's bytes,
-byte for byte (nothing is written).
+  levels/   the planes' maps and brushes tools/data_walk.py walks (tools/spinball_levels.py): NAME_map.csv (its rows
+            of brushes, h and v when mirrored) and NAME_brushes.txt (a brush a line, its 16 cells); levels.txt says
+            where each goes; NAME_plane.png is a picture of each table's plane in greys by pen, to look at (it is
+            not read back).
+With --check, every table, tileset, map and brushes is built from its files and compared with the cartridge's
+bytes, byte for byte (nothing is written).
 """
 import struct
 import sys
@@ -33,6 +37,7 @@ import asset_formats  # noqa: E402  (the core's PNG reader and writer)
 import data_walk  # noqa: E402
 import spinball_compression as compression  # noqa: E402
 import spinball_graphics as graphics  # noqa: E402
+import spinball_levels as levels  # noqa: E402
 
 GREYS = [(level, level, level) for level in range(0, 256, 17)]
 
@@ -156,16 +161,71 @@ def check_tilesets(image, folder):
     return problems
 
 
+def write_levels(analysis, names, folder):
+    folder.mkdir(parents=True, exist_ok=True)
+    image, walk = analysis.image, data_walk.walk_of(analysis)
+    lines = ["# The planes' maps and brushes: what each file is and where it goes in the cartridge (for --check)"]
+    for where, (width, rows, _) in sorted(walk.maps.items()):
+        name = names.get(where, f"map_{where:06X}").removesuffix("_map")
+        (folder / f"{name}_map.csv").write_text(levels.map_text(levels.read_map(image, where, width, rows)),
+                                                 encoding="ascii")
+        lines.append(f"map {name} at {where:06X} width {width} rows {rows}")
+    for where, (count, _) in sorted(walk.brushes.items()):
+        name = names.get(where, f"brushes_{where:06X}").removesuffix("_brushes")
+        (folder / f"{name}_brushes.txt").write_text(levels.brushes_text(levels.read_brushes(image, where, count)),
+                                                    encoding="ascii")
+        lines.append(f"brushes {name} at {where:06X} count {count}")
+    (folder / "levels.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
+    # the pictures: a table's planes drawn with its tiles (the first plane the code draws with the first tiles
+    # the table loads, the second with the second: 0D3FF4, 0D401A; 0D4FC0, 0D5014)
+    tables = [table for table, (kind, _) in walk.pointer_tables.items() if kind == "map"]
+    pictures = 0
+    for plane, (map_table, tiles_table) in enumerate(zip(tables, walk.tileset_tables)):
+        for level in range(data_walk.LEVELS):
+            where = data_walk.long_at(image, map_table + 4 * level)
+            brushes_at = dict(walk.plane_places)[where]
+            width, rows, _ = walk.maps[where]
+            tiles = compression.ssc_decode(image, data_walk.long_at(image, tiles_table + 4 * level)).data
+            picture = levels.plane_pens(levels.read_map(image, where, width, rows),
+                                        levels.read_brushes(image, brushes_at, walk.brushes[brushes_at][0]), tiles)
+            name = names.get(where, f"map_{where:06X}").removesuffix("_map")
+            asset_formats.write_png_indexed(folder / f"{name}_plane.png", picture, GREYS, 4)
+            pictures += 1
+    print(f"levels: {len(walk.maps)} maps, {len(walk.brushes)} brushes, {pictures} pictures -> {folder}")
+
+
+def check_levels(image, folder):
+    problems = 0
+    for line in (folder / "levels.txt").read_text(encoding="ascii").splitlines():
+        words = line.split("#", 1)[0].split()
+        if not words:
+            continue
+        kind, name, address = words[0], words[1], int(words[3], 16)
+        if kind == "map":
+            built = levels.map_bytes(levels.parse_map_text((folder / f"{name}_map.csv").read_text(encoding="ascii")))
+        else:
+            built = levels.brushes_bytes(levels.parse_brushes_text(
+                (folder / f"{name}_brushes.txt").read_text(encoding="ascii")))
+        if built != image[address:address + len(built)]:
+            print(f"{kind} {name}: differs from the cartridge's {len(built)} bytes at {address:06X}")
+            problems += 1
+        else:
+            print(f"{kind} {name}: {len(built)} bytes at {address:06X}, identical")
+    return problems
+
+
 def main():
     image, analysis, names = load()
     out_at = sys.argv.index("--out") if "--out" in sys.argv else None
     out = Path(sys.argv[out_at + 1]) if out_at is not None else game_profile.ROOT / "assets"
     if "--check" in sys.argv:
-        problems = check_sprites(image, out / "sprites") + check_tilesets(image, out / "tilesets")
+        problems = check_sprites(image, out / "sprites") + check_tilesets(image, out / "tilesets") \
+            + check_levels(image, out / "levels")
         print("all identical" if not problems else f"{problems} differ")
         return 1 if problems else 0
     write_sprites(analysis, names, out / "sprites")
     write_tilesets(analysis, names, out / "tilesets")
+    write_levels(analysis, names, out / "levels")
     return 0
 
 

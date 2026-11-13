@@ -31,8 +31,9 @@ The encoders give the cartridge's bytes back, every stream the game has (tools/e
        as the one looked for takes the last place found, a whole match takes the node's place, a node deleted
        takes the last of its smaller ones), written as Okumura's LZSS writes it (a byte of flags, the lowest first,
        1 a byte as it is; a place's low byte, then its high four bits over the length less 2). The end is a
-       reference to place 0, its length's four bits as found (0; 1 in the options' tiles at 0BDD2E: the decoder
-       does not read them).
+       reference to place 0, its length's four bits as found (the decoder does not read them): 0, but for the
+       options' tiles at 0BDD2E, whose last two bytes are also the first cell of the options' brushes (0BDFBC:
+       tile 1), so its end is 00 01.
   C2   the LZW everyone writes: the longest string the dictionary has, then a new entry, that string and the next
        byte; when the entry 7FF is taken, the next code is 100 and the dictionary starts over. It starts with 100
        and ends with 101; the last byte's bits after the end are 0. The codes are as wide as the decoder reads them.

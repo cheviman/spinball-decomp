@@ -63,6 +63,18 @@ have, and the animations' bytes other code reads)
                  masks of the codes' widths at 09BCD2 (four words: the fourth, FFF, is never read), and a code as
                  the three bytes from the one its first bit is in: two bytes past the end, which belong to what
                  follows.
+  maps, brushes  what the code keeps in FF3CAC (a map) and FF58CC (its brushes) before the plane drawers
+                 (0D8D0E, 0D8E12) run (tools/spinball_levels.py): an entry of a table by the level ("movea.l
+                 #TABLE, A0; move.l (A0,Dn.w), FF3CAC.l": BFC00 and BFC20 plane A's, BFC10 and BFC30 plane B's,
+                 0D4FC0-0D502C), or an address ("move.l #MAP, FF3CAC.l": the options screen's, 0FF446). A map is
+                 as wide as MAP_WIDTHS says for its level (for a map kept by address, the level the code sets in
+                 FF75B0 before it calls the function that keeps it: 4, the options', at 0FEDA4, 0FF192 and 0FF2D4),
+                 and as high as LEVEL_SIZES says for the four tables, in whole rows up to the next place the code
+                 hands over (Showdown's background: 48 of 64 rows, up to its collision at 5FEEA); the options'
+                 map up to the next place the code names (its texts at BE248: 7 rows). Its brushes are as many as
+                 the highest it uses. The drawers draw a cell more than the screen: they read the row after a
+                 map's last, and the brushes its words would name. The table BFC40 by the level, kept in FFF1F4,
+                 holds the collision (to describe); the tables of values LEVEL_VALUES are read by the level too.
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -79,6 +91,7 @@ from m68000.analysis import data_places  # noqa: E402  (the places an instructio
 import spinball_animation as animation  # noqa: E402
 import spinball_compression as compression  # noqa: E402
 import spinball_graphics as graphics  # noqa: E402
+import spinball_levels as levels  # noqa: E402
 
 MAKE_ANIMATED_OBJECT = 0x0D5F16     # takes a definition first
 SCRATCH = {"D0", "D1", "A0", "A1"}  # the registers a call of the game's C does not keep
@@ -102,8 +115,24 @@ READERS = {                         # the code that reads what the walk has (for
     "SSC decoder": (0x0D6B88, 0x0D6C2A),
     "tile loader": (0x0F3BB8, 0x0F3C06),
     "C2 decoder": (0x0F5A7A, 0x0F5B9E),
+    "plane drawers": (0x0D8D0E, 0x0D8F22),
 }
 C2_READ_PAST = 2                    # the C2 decoder reads a code as the three bytes from its first: past the end
+LEVEL_POINTERS = {                  # where the code keeps an entry of a table by the level, and what it is
+    0xFF3CAC: "map",                # read by the plane drawers 0D8D0E, 0D8E12
+    0xFF58CC: "brushes",            # the same
+    0xFFF1F4: "collision",          # read by 0DC3DE, 0E1D10 (to describe)
+}
+LEVEL_SIZES = 0x0BFC70              # the tables' width and height in pixels, two words each (0D4036)
+LEVEL_VALUES = {                    # the tables' values the level-loading code (0D3FAC) reads by the level: bytes each
+    0x0BFC50: (8, "palettes by level"),     # the palette of each of the four lines (0D41A8, through 0D8674)
+    LEVEL_SIZES: (4, "sizes by level"),     # width and height (0D4036: the camera's limits, less 140 and E0)
+    0x0BFC80: (4, "starts by level"),       # x and y (0D405E: FF0008 and FF5754, FF000A and FF55AA)
+    0x0BFC90: (2, "music by level"),        # (0D41E6: 0D562C starts it)
+    0x0BFC98: (2, "countdowns by level"),   # (0D4150: FF000C, which 0D44F8 and 0D49B6 count down)
+}
+LEVEL_VARIABLE = 0xFF75B0           # the level: 0-3 the tables, 4 the options screen (0FEDA4)
+PAIR_DISTANCE = 0x40                # how far after a map's store its brushes' store comes (in bytes of code)
 
 
 def long_at(image, address):
@@ -157,8 +186,17 @@ class Walk:
         self.animation_lists = {}       # {address: (entries, how it was found)}
         self.list_tables = {}           # {address: how it was found}: tables of four lists, a level each
         self.anchors = set()            # places the code names: an animation that runs on ends there
+        self.handed = set()             # the places the code hands over or keeps in a table (the anchors but
+                                        # the constants of instructions)
         self.object_tables = {}         # {address: (objects, how it was found)}
         self.makers = {MAKE_ANIMATED_OBJECT: (0, "the engine")}     # {function: (its definition's argument, how)}
+        self.pointer_tables = {}        # {address: (what its entries point at, how it was found)}: by the level
+        self.kept = []                  # [(kind, address or None, table or None, where)] LEVEL_POINTERS' stores
+        self.plane_pairs = []           # [(map, its table, brushes, their table, where)] kept one after the other
+        self.plane_places = []          # [(map, brushes)] walked
+        self.widths_read = 0            # the entries of MAP_WIDTHS the walked maps take
+        self.maps = {}                  # {address: (width, rows, how it was found)}
+        self.brushes = {}               # {address: (count, how it was found)}
         self.tilesets = {}              # {address: (kind, size in bytes, how it was found)}
         self.tileset_tables = {}        # {address: how it was found}: tables of four tilesets, a level each
         self.ordered = []               # [(address, Instruction)] of the analysis, in address order
@@ -180,14 +218,21 @@ class Walk:
                 self.call_site(position, address, instruction.target)
             if instruction.flow == "call" and instruction.target in TILE_LOADERS:
                 self.tileset_load(position, address, instruction.target)
+            self.level_pointer_store(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
+        self.pair_planes()
         self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables) \
             | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables) \
-            | set(self.tilesets) | set(self.tileset_tables)
+            | set(self.tilesets) | set(self.tileset_tables) | set(self.pointer_tables)
+        for table in self.pointer_tables:
+            self.anchors.update(long_at(self.image, table + 4 * level) for level in range(LEVELS))
+        self.anchors.update(value for _, value, _, _ in self.kept if value is not None)
+        self.handed = set(self.anchors)
         for instruction in self.analysis.instructions.values():
             self.anchors.update(place for place in data_places(instruction) if place < len(self.image))
+        self.walk_planes()
         self.walk_definitions()
         biggest = max(len(sprites) for _, sprites, _, _ in self.sprite_tables.values())
         for table, found in lists:
@@ -316,6 +361,122 @@ class Walk:
                 index = next(index for index in range(LEVELS) if long_at(self.image, table + 4 * index) == definition)
                 self.definitions.setdefault(definition, f"entry {index} of {table:06X}, {how}")
                 self.level_tables[table] = f"indexed by the level, {how}"
+
+    def level_pointer_store(self, position, address, instruction):
+        """What the code keeps in one of LEVEL_POINTERS: an entry of a table by the level ("movea.l #TABLE, A0"
+        then "move.l (A0,Dn.w), POINTER.l"), or an address ("move.l #ADDRESS, POINTER.l"); a map and its brushes
+        are kept one after the other, before a plane is drawn"""
+        operands = instruction.operands
+        if instruction.mnemonic != "move" or instruction.size != "l" or len(operands) != 2 \
+                or operands[1].mode != "abs_long" or not position:
+            return
+        kind = LEVEL_POINTERS.get(operands[1].value & 0xFFFFFF)
+        if kind is None:
+            return
+        if operands[0].mode == "immediate":
+            self.kept.append((kind, operands[0].value & 0xFFFFFF, None, address))
+            return
+        loader = self.ordered[position - 1][1]
+        if operands[0].mode != "index" or loader.mnemonic != "movea" or loader.operands[0].mode != "immediate" \
+                or loader.operands[1].reg != operands[0].reg:
+            return
+        table = loader.operands[0].value & 0xFFFFFF
+        self.pointer_tables.setdefault(table, (kind, f"kept in {operands[1].value & 0xFFFFFF:06X} at {address:06X}"))
+        self.kept.append((kind, None, table, address))
+
+    def pair_planes(self):
+        """The maps and their brushes from what the code keeps: each brushes after the map kept just before it"""
+        last_map = None
+        for kind, value, table, address in self.kept:
+            if kind == "map":
+                last_map = (value, table, address)
+            elif kind == "brushes" and last_map is not None and address - last_map[2] < PAIR_DISTANCE:
+                pair = (last_map[0], last_map[1], value, table, address)
+                if pair[:4] not in [known[:4] for known in self.plane_pairs]:
+                    self.plane_pairs.append(pair)
+                last_map = None
+
+    def levels_set_before(self, function, depth=3):
+        """The levels the code sets ("move.w #N, FF75B0.l") before it calls 'function': in each caller, the last
+        one before the call, or else in the callers' callers"""
+        found = set()
+        for position, (address, instruction) in enumerate(self.ordered):
+            if instruction.flow != "call" or instruction.target != function:
+                continue
+            caller = self.function_of(address)
+            start = self.position_of.get(caller, position)
+            settings = [step.operands[0].value for _, step in self.ordered[start:position]
+                        if step.mnemonic == "move" and step.size == "w" and len(step.operands) == 2
+                        and step.operands[0].mode == "immediate" and step.operands[1].mode == "abs_long"
+                        and step.operands[1].value & 0xFFFFFF == LEVEL_VARIABLE]
+            if settings:
+                found.add(settings[-1])
+            elif depth:
+                found |= self.levels_set_before(caller, depth - 1)
+        return found
+
+    def next_handed(self, address):
+        """The next place after 'address' the code hands over or keeps in a table (not every constant that
+        could be an address: an instruction's 40000 is no place)"""
+        return min((place for place in self.handed if place > address), default=len(self.image))
+
+    def walk_planes(self):
+        """Each map and its brushes: a map is its table's width (MAP_WIDTHS, by the level: for a map the code keeps
+        itself, the level the code sets before it calls the function that keeps it) by its height in brushes: a
+        table's from LEVEL_SIZES (over 32), in whole rows up to the next place the code hands over; another
+        screen's, the whole rows up to the next place the code names (the options': 7, the screen's 224 lines,
+        up to its texts at BE248). Its brushes, as many as the highest it uses, must end by the next place the
+        code hands over"""
+        for map_address, map_table, brushes_address, brushes_table, address in self.plane_pairs:
+            if map_table is not None:
+                entries = [(level, long_at(self.image, map_table + 4 * level),
+                            long_at(self.image, brushes_table + 4 * level),
+                            f"entry {level} of {map_table:06X}", f"entry {level} of {brushes_table:06X}")
+                           for level in range(LEVELS)]
+            elif map_address in self.maps:
+                continue
+            else:
+                found = self.levels_set_before(self.function_of(address))
+                if len(found) != 1:
+                    raise SystemExit(f"the map kept at {address:06X}: the code sets the levels {sorted(found)} first")
+                level = found.pop()
+                entries = [(level, map_address, brushes_address, f"kept at {address:06X} for level {level}",
+                            f"kept at {address:06X}")]
+            for level, where, brushes_at, map_found, brushes_found in entries:
+                self.add_plane(level, where, brushes_at, map_found, brushes_found)
+
+    def add_plane(self, level, where, brushes_at, map_found, brushes_found):
+        width = struct.unpack_from(">H", self.image, levels.MAP_WIDTHS + 2 * level)[0]
+        self.widths_read = max(self.widths_read, level + 1)
+        if level < LEVELS:
+            height = struct.unpack_from(">H", self.image, LEVEL_SIZES + 4 * level + 2)[0] // levels.BRUSH_PIXELS
+            rows = min(height, (self.next_handed(where) - where) // (2 * width))
+        else:
+            next_named = min(anchor for anchor in self.anchors if anchor > where)
+            height = rows = (next_named - where) // (2 * width)
+        self.maps[where] = (width, rows, map_found + ("" if rows == height else f", {rows} of {height} rows: what "
+                                                      f"the code hands over next is at {where + 2 * width * rows:06X}"))
+        count = 1 + max(word & levels.BRUSH_NUMBER for row in levels.read_map(self.image, where, width, rows)
+                        for word in row)
+        if brushes_at + levels.BRUSH_BYTES * count > self.next_handed(brushes_at):
+            raise SystemExit(f"the brushes at {brushes_at:06X} ({count} for the map {where:06X}) run into "
+                             f"{self.next_handed(brushes_at):06X}")
+        self.brushes[brushes_at] = (count, f"{brushes_found}, for the map {where:06X}")
+        self.plane_places.append((where, brushes_at))
+
+    def past_maps(self):
+        """The bytes the drawers read past the maps: the row after each map's last (they draw a cell more than
+        the screen shows), and the brushes its words would name"""
+        past = set()
+        for where, brushes_at in self.plane_places:
+            width, rows, _ = self.maps[where]
+            after = where + 2 * width * rows
+            past.update(range(after, after + 2 * width))
+            for column in range(width):
+                word = struct.unpack_from(">H", self.image, after + 2 * column)[0]
+                first = brushes_at + levels.BRUSH_BYTES * (word & levels.BRUSH_NUMBER)
+                past.update(range(first, first + levels.BRUSH_BYTES))
+        return past
 
     def tileset_load(self, position, address, loader):
         """The tiles a call of one of the loaders gets, where the code says which"""
@@ -550,6 +711,18 @@ class Walk:
             found[address] = (address + size, kind)
         for table in self.tileset_tables:
             found[table] = (table + 4 * LEVELS, "tilesets by level")
+        for table, (kind, _) in self.pointer_tables.items():
+            found[table] = (table + 4 * LEVELS, f"{kind} by level")
+        for address, (width, rows, _) in self.maps.items():
+            found[address] = (address + 2 * width * rows, "map")
+        for address, (count, _) in self.brushes.items():
+            found[address] = (address + levels.BRUSH_BYTES * count, "brushes")
+        if self.widths_read:
+            found[levels.MAP_WIDTHS] = (levels.MAP_WIDTHS + 2 * self.widths_read, "map widths")
+        for table, (size, kind) in LEVEL_VALUES.items():
+            if table not in self.anchors:
+                raise SystemExit(f"{table:06X} ({kind}): no instruction names it")
+            found[table] = (table + size * LEVELS, kind)
         if any(kind.startswith("C2") for kind, _, _ in self.tilesets.values()):
             found[compression.C2_MASKS] = (compression.C2_MASKS + C2_MASKS_SIZE, "C2 code masks")
         return found
@@ -589,6 +762,7 @@ def check_reads(walk, folder):
     for address, (kind, size, _) in walk.tilesets.items():
         if kind.startswith("C2"):
             walked.update(range(address + size, address + size + C2_READ_PAST))
+    walked |= walk.past_maps()
     by_reader, others = defaultdict(lambda: defaultdict(set)), defaultdict(set)
     for path in glob.glob(str(Path(folder) / "**" / "rom_reads.txt"), recursive=True):
         for line in open(path, encoding="ascii"):
@@ -635,6 +809,12 @@ def main():
           f"{len(walk.animations)} ({len(walk.steps)} steps)")
     for function, (argument, found) in sorted(walk.makers.items()):
         print(f"maker {function:06X} {names.get(function, '')}: the definition is its argument {argument} ({found})")
+    for table, (kind, found) in sorted(walk.pointer_tables.items()):
+        print(f"{kind} by level {table:06X} ({found})")
+    for address, (width, rows, found) in sorted(walk.maps.items()):
+        print(f"map {address:06X}-{address + 2 * width * rows - 1:06X} {width}x{rows} ({found})")
+    for address, (count, found) in sorted(walk.brushes.items()):
+        print(f"brushes {address:06X}-{address + levels.BRUSH_BYTES * count - 1:06X} {count} ({found})")
     for address, (kind, size, found) in sorted(walk.tilesets.items()):
         print(f"{address:06X}-{address + size - 1:06X} {names.get(address, '?'):28} {kind} ({found})")
     for table, (objects, found) in sorted(walk.object_tables.items()):

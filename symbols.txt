@@ -110,3 +110,44 @@
 0CC710  data  bonus_stage_2_tiles
 0CF2DE  data  bonus_stage_3_tiles
 0D10B0  data  bonus_stage_1_tiles
+
+# the tables' planes (tools/spinball_levels.py; tools/data_walk.py walks them from what the code keeps in FF3CAC and
+# FF58CC before the drawers 0D8D0E and 0D8E12 run; assets/levels): a map of 32x32 brushes each, and the brushes
+049EA0  data  toxic_caves_map
+04B2A0  data  toxic_caves_background_map
+03E800  data  toxic_caves_brushes
+0450E0  data  toxic_caves_background_brushes
+05CDEA  data  showdown_map
+05E9EA  data  showdown_background_map
+05398A  data  showdown_brushes
+05B20A  data  showdown_background_brushes
+07646A  data  lava_powerhouse_map
+077C6A  data  lava_powerhouse_background_map
+06828A  data  lava_powerhouse_brushes
+07040A  data  lava_powerhouse_background_brushes
+091956  data  the_machine_map
+093056  data  the_machine_background_map
+0829B6  data  the_machine_brushes
+08A516  data  the_machine_background_brushes
+# the options screen's (0FF446: level 4), its brushes begin on the last two bytes of its tiles (the SSC's end: the
+# first brush's first cell, tile 1, is the end's second byte)
+0BE1BC  data  options_map
+0BDFBC  data  options_brushes
+# the tables by the level, a long each: the tiles (0D3FEA, 0D4010), the maps and brushes (0D4FC4-0D502C), the
+# collision's sectors (0D4024: FFF1F4, which 0DC3DE and 0E1D10 read; to describe)
+0BFBE0  data  level_tiles
+0BFBF0  data  level_background_tiles
+0BFC00  data  level_maps
+0BFC10  data  level_background_maps
+0BFC20  data  level_brushes
+0BFC30  data  level_background_brushes
+0BFC40  data  level_collision
+# and their values: the palette each of the four lines takes (0D419C-0D41D2, through 0D8674); the width and height
+# in pixels (0D4036: less 140 and E0, the camera's limits FF5748 and FF55A2); a place each starts at (0D405E:
+# FF0008 and FF5754, FF000A and FF55AA; the forum's camera start); the music (0D41E6: 0D562C starts it); a countdown each table starts with
+# (0D4150: FF000C, which 0D44F8 and 0D49B6 count down; 0 when FF579F is set)
+0BFC50  data  level_palettes
+0BFC70  data  level_sizes
+0BFC80  data  level_starts
+0BFC90  data  level_music
+0BFC98  data  level_countdowns
