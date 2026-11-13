@@ -123,11 +123,14 @@ cannot work out, each with how it was found) and `tools/game_profile.py` (the se
 symbols.txt            the program's names and what the analysis cannot see by itself
 runtime/               the game's side of the runtime: its cartridge (rom_set.c)
 tests/controls/        control scripts: the scenarios the reference and the game run
-tools/                 the game's tools: its profile, its cartridge's module, the core's scripts for it, and
-                       spinball_analysis.py (what this game's compiler does that the core's analysis does not follow)
+tools/                 the game's tools: its profile, its cartridge's module, the core's scripts for it,
+                       spinball_analysis.py (what this game's compiler does that the core's analysis does not follow),
+                       the formats (spinball_*.py), the walk of the data from the code (data_walk.py, walk_*.py by
+                       subject) and the assets' extractor
 tools/core/            arcade-decomp (submodule): the decompiler, the 68000's frontend and analysis
 tools/console/         console-decomp (submodule): the Mega Drive in C and mdref
-docs/                  research.md (what is known of the game), plan.md, performance.md
+docs/                  research.md (what is known of the game), plan.md, performance.md, techniques.md (the
+                       ways of working that found the formats)
 rom/                   your cartridge (not in the repository)
 external/              other people's disassemblies, for reference (not in the repository)
 build/                 builds, listings, scenario runs (not in the repository)

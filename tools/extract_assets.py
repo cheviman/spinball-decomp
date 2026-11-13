@@ -35,6 +35,9 @@ import game_profile  # noqa: E402
 import importlib  # noqa: E402
 import asset_formats  # noqa: E402  (the core's PNG reader and writer)
 import data_walk  # noqa: E402
+import walk_graphics  # noqa: E402
+import walk_levels  # noqa: E402
+import walk_patterns  # noqa: E402
 import spinball_compression as compression  # noqa: E402
 import spinball_graphics as graphics  # noqa: E402
 import spinball_levels as levels  # noqa: E402
@@ -153,7 +156,7 @@ def check_tilesets(image, folder):
         else:
             built = head + data
         if words[-1] == "pad":
-            built += bytes([data_walk.TILESET_PAD])
+            built += bytes([walk_graphics.TILESET_PAD])
         if built != image[address:address + len(built)]:
             print(f"tiles {name}: differs from the cartridge's {len(built)} bytes at {address:06X}")
             problems += 1
@@ -182,8 +185,8 @@ def write_levels(analysis, names, folder):
         (folder / f"{name}_collision.txt").write_text(levels.collision_text(lists), encoding="ascii")
         lines.append(f"collision {name} at {where:06X} rows {rows}")
         table = next(table for table, (kind, _) in walk.pointer_tables.items() if kind == "collision")
-        level = next(level for level in range(data_walk.LEVELS) if data_walk.long_at(image, table + 4 * level) == where)
-        width, height = (struct.unpack_from(">H", image, data_walk.LEVEL_SIZES + 4 * level + offset)[0]
+        level = next(level for level in range(walk_patterns.LEVELS) if walk_patterns.long_at(image, table + 4 * level) == where)
+        width, height = (struct.unpack_from(">H", image, walk_levels.LEVEL_SIZES + 4 * level + offset)[0]
                          for offset in (0, 2))
         asset_formats.write_png_indexed(folder / f"{name}_collision.png", levels.collision_pens(lists, width, height),
                                         GREYS, 4)
@@ -194,16 +197,16 @@ def write_levels(analysis, names, folder):
     tables = [table for table, (kind, _) in walk.pointer_tables.items() if kind == "map"]
     pictures = 0
     for plane, (map_table, tiles_table) in enumerate(zip(tables, walk.tileset_tables)):
-        for level in range(data_walk.LEVELS):
-            where = data_walk.long_at(image, map_table + 4 * level)
+        for level in range(walk_patterns.LEVELS):
+            where = walk_patterns.long_at(image, map_table + 4 * level)
             brushes_at = dict(walk.plane_places)[where]
             width, rows, _ = walk.maps[where]
-            tiles = compression.ssc_decode(image, data_walk.long_at(image, tiles_table + 4 * level)).data
+            tiles = compression.ssc_decode(image, walk_patterns.long_at(image, tiles_table + 4 * level)).data
             picture = levels.plane_pens(levels.read_map(image, where, width, rows),
                                         levels.read_brushes(image, brushes_at, walk.brushes[brushes_at][0]), tiles)
             name = names.get(where, f"map_{where:06X}").removesuffix("_map")
             numbers = struct.unpack_from(">4H", image, LEVEL_PALETTES + 8 * level)
-            palettes = graphics.read_palettes(image, data_walk.PALETTES, walk.palettes)
+            palettes = graphics.read_palettes(image, walk_graphics.PALETTES, walk.palettes)
             colours = [graphics.rgb(word) for number in numbers for word in palettes[number]]
             asset_formats.write_png_indexed(folder / f"{name}_plane.png", picture, colours, 8)
             pictures += 1
@@ -214,10 +217,10 @@ def write_palettes(analysis, folder):
     """palettes.txt (the palettes and the colour cycles, each as the words the CRAM takes) and a picture"""
     folder.mkdir(parents=True, exist_ok=True)
     image, walk = analysis.image, data_walk.walk_of(analysis)
-    palettes = graphics.read_palettes(image, data_walk.PALETTES, walk.palettes)
+    palettes = graphics.read_palettes(image, walk_graphics.PALETTES, walk.palettes)
     lines = ["# The palettes (16 words each, 0000BBB0GGG0RRR0 as the CRAM takes them) and the colour cycles the game",
              "# writes over some of their colours; each says where it goes (for --check): tools/spinball_graphics.py",
-             f"palettes at {data_walk.PALETTES:06X}"]
+             f"palettes at {walk_graphics.PALETTES:06X}"]
     lines += graphics.palettes_text(palettes).splitlines()
     for table, (entries, size, kind, found) in sorted(walk.cycles.items()):
         words = struct.unpack_from(f">{entries}H", image, table)
@@ -267,7 +270,7 @@ def write_flippers(image, names, walk, folder):
         lines.append(f"shape at {where:06X}  # {found}")
         lines += levels.records_text(levels.read_list(image, where)[0])
     first, count = walk.flipper_boxes
-    start = data_walk.FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * first
+    start = walk_levels.FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * first
     lines.append(f"boxes at {start:06X}  # the positions {first}-{first + count - 1}")
     lines += ["  " + " ".join(str(value) for value in levels.read_box(image, start + levels.FLIPPER_BOX_BYTES * index))
               for index in range(count)]
