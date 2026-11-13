@@ -17,6 +17,12 @@
 # keep and the tables read relative to the PC (tools/game_profile.py); the lines here are what it cannot work
 # out, each with how it was found (mdref --jumps: where a jump through a register went).
 
+# ======== functions ========
+
+# makes an animated object from a definition (its first argument: tools/data_walk.py reads what the code hands it),
+# at a place and with flags (0D5F16-0D60E0)
+0D5F16  func  make_animated_object
+
 # ======== functions reached only through data ========
 
 # the front end's sequencer (0F454A) runs scripts of commands; one of them calls a function whose address is in
@@ -45,10 +51,9 @@
 # ======== data ========
 
 # the sprite tables (tools/spinball_graphics.py; the loader at 0D7D02 reads one through what an object's field 3A
-# points at, field 0A). tools/data_walk.py finds the ones the code stores there itself (0E5F46 $E47A, 0EB454
-# $318EE, 0EE3C2 $2B7A4); all six are held by the sprite descriptors from 0C0AC4 (8 bytes each: the table, then two
-# words an object's fields 1E and 20 take), which the code that makes an animated object reads through its
-# definition (0D5FD2-0D604A), a walk still to write. The names say what each sheet shows (assets/sprites).
+# points at, field 0A). tools/data_walk.py finds them all from the code: through the definitions the code hands
+# make_animated_object and their sprite descriptors, and where the code stores one itself. The names say what
+# each sheet shows (assets/sprites).
 0013DC  data  sonic_sprites
 00E47A  data  common_sprites
 012B0C  data  toxic_caves_sprites
