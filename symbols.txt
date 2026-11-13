@@ -34,10 +34,16 @@
 # the same sequencer's call at 0F47E4 reaches this one too (mdref --jumps, The Machine's and Showdown's runs)
 0F3676  func  sequence_call_0F3676
 
-# the animation interpreter calls a function whose address the animation's data holds (0D5D78 "movea.l (A3), A0",
-# 0D5D7A "jsr (A0)"; mdref --jumps: 0D5D7A -> 0D617A, 0D61D2). Their names wait for the animations' format.
+# the functions animations call (their command 10: the step's long; tools/data_walk.py finds them and lists the ones
+# the analysis cannot see, which go here). The step that calls each: 07F24E 0D617A, 039314 0D6194, 039326 0D61AC,
+# 03931A 0D61B8, 039292 0D61C4, 09904A 0D61D2, 000A94 0E2F94. Their names wait for what they do.
 0D617A  func  animation_call_0D617A
+0D6194  func  animation_call_0D6194
+0D61AC  func  animation_call_0D61AC
+0D61B8  func  animation_call_0D61B8
+0D61C4  func  animation_call_0D61C4
 0D61D2  func  animation_call_0D61D2
+0E2F94  func  animation_call_0E2F94
 
 # 0F3676 calls the function its caller hands it in A5 (0F3694 "jsr (A5)"; mdref --jumps: 0F3694 -> 0F3F7E)
 0F3F7E  func  sequence_task_0F3F7E
