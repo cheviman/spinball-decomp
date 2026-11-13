@@ -1,0 +1,142 @@
+# Sonic the Hedgehog Spinball — decompilation
+
+A decompilation of Sega's 1993 Mega Drive / Genesis game *Sonic the Hedgehog Spinball* (a 68000 program
+written in C, with a Z80 running the GEMS sound driver) into readable C that does exactly what the original
+does, checked frame by frame against MAME's cores. It is on its way to two things built from that same C:
+
+- **a Mega Drive ROM that never slows down**: the original loses about a fifth to a third of its frames on
+  every table (see "Status"); the goal is every frame on time on a stock console, with all of the game in it;
+- **a native port with an arcade's presentation**, with a vertical view of the table besides the wide one.
+
+**This repository contains no game data.** You bring your own cartridge dump; the tools check it, and
+everything they take from it stays on your computer.
+
+Work in progress: the reference, the static analysis and the coverage are done; the data's formats, the
+decompiled C and the builds come next (`docs/plan.md`).
+
+## Status
+
+As of 2026-11-13:
+
+- [x] Cartridge verification (USA, `GM MK-1537 -00`) by CRC32 and SHA-1
+- [x] Reference: the original program on MAME's 68000 core against the Mega Drive in C of
+      [console-decomp](https://github.com/cheviman/console-decomp) (`mdref`), with MAME's Z80 and PSG and
+      ymfm's YM2612: it boots, plays every table, makes its music, and measures how much of each frame the game
+      takes
+- [x] Control scripts for the four tables (`tests/controls/`): the level select's flag on and the table's
+      button held at the start, then a fixed pattern of flippers and moves
+- [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
+      calls): 47,389 instructions in 418 functions, and every one of the 17,399 addresses the four scenarios
+      execute is found; six functions reached only through data are in `symbols.txt` with how they were found
+- [x] The cartridge's bytes classified: 16.4% code, 0.4% described data, 0.4% unknown; the rest is data the
+      code reads or points at, waiting for its formats
+- [x] The uncompressed sprites' format read from the code (`0D7D02`-`0D7FB0`): six tables, 457 sprites,
+      every byte of 0013DC-03909D accounted for
+- [ ] The data with names and types, and the assets as editable files that build back byte for byte: sprites
+      and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
+      the GEMS music and samples
+- [ ] The decompiled C, checked frame by frame (state, picture, sound) against the reference
+- [ ] The game in a window on Windows (SDL), then the ROM built from the C with a modern GCC, then the port
+
+The load, measured with `mdref` (`docs/performance.md`; the console's timing comes from Sega's manuals and
+BlastEm, not yet checked against a console):
+
+| Table | Game speed | Heaviest step (of a frame's 128,005 cycles) |
+|---|---|---|
+| Toxic Caves | 81% | 194% |
+| Lava Powerhouse | 73% | 278% |
+| The Machine | 65% | 268% |
+| Showdown | 73% | 280% |
+
+## Getting started
+
+Requirements: Python 3.10 or newer, CMake 3.20 or newer, and a C11 / C++20 compiler (Visual Studio Build Tools
+on Windows).
+
+1. Clone with the submodules (`tools/core` is [arcade-decomp](https://github.com/cheviman/arcade-decomp)'s
+   `spinball` branch, `tools/console` is console-decomp):
+
+   ```bash
+   git clone --recursive https://github.com/cheviman/spinball-decomp
+   ```
+
+2. Put your dump of the USA cartridge in `rom/`: the 1 MiB file, or a .zip holding it, under any name (CRC32
+   `677206CB`, SHA-1 `24bf6342b98c09775089c9f39cfb2f6fbe7806f7`).
+
+3. Build the reference into `build/bin/`:
+
+   ```bash
+   cmake -S . -B build/msvc
+   ```
+
+   ```bash
+   cmake --build build/msvc --config Release --target mdref
+   ```
+
+4. Run a table and see its load (the main loop's step at `0D527A`, its wait for the next frame at `0D54B0`):
+
+   ```bash
+   build/bin/mdref --script tests/controls/the_machine.txt --step D527A --idle D54B0
+   ```
+
+5. The static analysis (`build/listing/spinball.s` and `report.txt`):
+
+   ```bash
+   python tools/disassemble.py
+   ```
+
+   and the coverage, from a scenario's run (`build/listing/coverage.txt`):
+
+   ```bash
+   mkdir -p build/scenarios/the_machine
+   ```
+
+   ```bash
+   build/bin/mdref --script tests/controls/the_machine.txt --trace build/scenarios/the_machine/executed.txt --rom-reads build/scenarios/the_machine/rom_reads.txt
+   ```
+
+   ```bash
+   python tools/coverage.py --trace build/scenarios/the_machine/executed.txt --reads build/scenarios
+   ```
+
+`mdref` without options prints its usage; it also writes per-frame hashes, pictures (BMP), the sound (WAV),
+the code a run executes and the cycles of each function (`--profile`).
+
+## Changing the decompilation
+
+There is no C yet. What the tools know of the program lives in `symbols.txt` (names, and what the analysis
+cannot work out, each with how it was found) and `tools/game_profile.py` (the settings the shared core reads).
+
+## Layout
+
+```
+symbols.txt            the program's names and what the analysis cannot see by itself
+runtime/               the game's side of the runtime: its cartridge (rom_set.c)
+tests/controls/        control scripts: the scenarios the reference and the game run
+tools/                 the game's tools: its profile, its cartridge's module, the core's scripts for it
+tools/core/            arcade-decomp (submodule): the decompiler, the 68000's frontend and analysis
+tools/console/         console-decomp (submodule): the Mega Drive in C and mdref
+docs/                  research.md (what is known of the game), plan.md, performance.md
+rom/                   your cartridge (not in the repository)
+external/              other people's disassemblies, for reference (not in the repository)
+build/                 builds, listings, scenario runs (not in the repository)
+```
+
+## The assets
+
+Not extracted yet. They will come out of your cartridge into `assets/` (not in the repository) as files that
+common tools open (indexed PNG sheets by object and by tileset, text for the data, MIDI and WAV for the sound),
+and build back into the cartridge's bytes exactly (`--check`).
+
+## Legal
+
+- This project is licensed under the BSD 3-Clause License; see `LICENSE`.
+- No ROM contents (program, graphics, sound, data) and no extracted assets are distributed by this project;
+  they come from your own cartridge. The decompiled C, when it comes, is the game's program in a new form:
+  logic only, with names and comments written for this project.
+- The reference tools build MAME's and ymfm's code (BSD-3-Clause) from the submodules; see their `LICENSE`
+  files.
+- What is known of the game builds on the community's research, credited in `docs/research.md`: Andlabs'
+  disassembly, the work of Wafer, Eggplant891 (Sonic Spintool) and the Sonic Retro forum.
+- Sonic the Hedgehog and Sonic Spinball are trademarks of SEGA. This project is not affiliated with or
+  endorsed by SEGA.

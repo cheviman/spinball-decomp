@@ -1,0 +1,176 @@
+# The Machine from the title: the level select (its flag poked on, as the options' code sets it: FFF8F8,
+# 0FF06E sets it after the 15th right entry), Start held with the table's button when the game starts (0D43A8
+# reads the pad: A Lava Powerhouse, B The Machine, C Showdown, none Toxic Caves), then a fixed pattern of
+# flippers and moves until frame 5400 (the default buttons: A left flipper, B right, C both)
+600 poke FFF8F8 01
+680 hold b1
+620 press start1
+700 press start1
+780 press start1
+840 release b1
+1000 press c1 6
+1040 press a1 6
+1065 press b1 6
+1090 hold left1
+1120 release left1
+1130 press c1 10
+1180 hold right1
+1210 release right1
+1220 press b1 4
+1240 press a1 4
+1260 press c1 6
+1295 press c1 6
+1335 press a1 6
+1360 press b1 6
+1385 hold left1
+1415 release left1
+1425 press c1 10
+1475 hold right1
+1505 release right1
+1515 press b1 4
+1535 press a1 4
+1555 press c1 6
+1590 press c1 6
+1630 press a1 6
+1655 press b1 6
+1680 hold left1
+1710 release left1
+1720 press c1 10
+1770 hold right1
+1800 release right1
+1810 press b1 4
+1830 press a1 4
+1850 press c1 6
+1885 press c1 6
+1925 press a1 6
+1950 press b1 6
+1975 hold left1
+2005 release left1
+2015 press c1 10
+2065 hold right1
+2095 release right1
+2105 press b1 4
+2125 press a1 4
+2145 press c1 6
+2180 press c1 6
+2220 press a1 6
+2245 press b1 6
+2270 hold left1
+2300 release left1
+2310 press c1 10
+2360 hold right1
+2390 release right1
+2400 press b1 4
+2420 press a1 4
+2440 press c1 6
+2475 press c1 6
+2515 press a1 6
+2540 press b1 6
+2565 hold left1
+2595 release left1
+2605 press c1 10
+2655 hold right1
+2685 release right1
+2695 press b1 4
+2715 press a1 4
+2735 press c1 6
+2770 press c1 6
+2810 press a1 6
+2835 press b1 6
+2860 hold left1
+2890 release left1
+2900 press c1 10
+2950 hold right1
+2980 release right1
+2990 press b1 4
+3010 press a1 4
+3030 press c1 6
+3065 press c1 6
+3105 press a1 6
+3130 press b1 6
+3155 hold left1
+3185 release left1
+3195 press c1 10
+3245 hold right1
+3275 release right1
+3285 press b1 4
+3305 press a1 4
+3325 press c1 6
+3360 press c1 6
+3400 press a1 6
+3425 press b1 6
+3450 hold left1
+3480 release left1
+3490 press c1 10
+3540 hold right1
+3570 release right1
+3580 press b1 4
+3600 press a1 4
+3620 press c1 6
+3655 press c1 6
+3695 press a1 6
+3720 press b1 6
+3745 hold left1
+3775 release left1
+3785 press c1 10
+3835 hold right1
+3865 release right1
+3875 press b1 4
+3895 press a1 4
+3915 press c1 6
+3950 press c1 6
+3990 press a1 6
+4015 press b1 6
+4040 hold left1
+4070 release left1
+4080 press c1 10
+4130 hold right1
+4160 release right1
+4170 press b1 4
+4190 press a1 4
+4210 press c1 6
+4245 press c1 6
+4285 press a1 6
+4310 press b1 6
+4335 hold left1
+4365 release left1
+4375 press c1 10
+4425 hold right1
+4455 release right1
+4465 press b1 4
+4485 press a1 4
+4505 press c1 6
+4540 press c1 6
+4580 press a1 6
+4605 press b1 6
+4630 hold left1
+4660 release left1
+4670 press c1 10
+4720 hold right1
+4750 release right1
+4760 press b1 4
+4780 press a1 4
+4800 press c1 6
+4835 press c1 6
+4875 press a1 6
+4900 press b1 6
+4925 hold left1
+4955 release left1
+4965 press c1 10
+5015 hold right1
+5045 release right1
+5055 press b1 4
+5075 press a1 4
+5095 press c1 6
+5130 press c1 6
+5170 press a1 6
+5195 press b1 6
+5220 hold left1
+5250 release left1
+5260 press c1 10
+5310 hold right1
+5340 release right1
+5350 press b1 4
+5370 press a1 4
+5390 press c1 6
+5400 end

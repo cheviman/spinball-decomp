@@ -1,0 +1,6 @@
+[submodule "tools/core"]
+	path = tools/core
+	url = https://github.com/cheviman/arcade-decomp
+[submodule "tools/console"]
+	path = tools/console
+	url = https://github.com/cheviman/console-decomp
