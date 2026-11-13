@@ -26,7 +26,8 @@ TOOLS = Path(__file__).resolve().parent
 sys.path[:0] = [str(TOOLS / "core"), str(TOOLS)]
 
 SCRATCH = {"D0", "D1", "A0", "A1"}  # the registers a call of the game's C does not keep
-PUSHES_WALKED = 64                  # how far back from a call its pushes are looked for
+PUSHES_WALKED = 4096                # how far back from a call its pushes are looked for (many ways can share it)
+CALL_TARGET_WALKED = 4096           # how far back from a call through a register its loader is looked for
 LEVELS = 4                          # the tables the game has: what a table indexed by the level holds
 LEVEL_VARIABLE = 0xFF75B0           # the level: 0-3 the tables, 4 the options screen (0FEDA4)
 
@@ -74,6 +75,7 @@ class CodePatterns:
         self.position_of = {}           # {address: its position in ordered}
         self.comes_from = {}            # {address: positions of the jumps and branches that go there}
         self.value_tables_by_level = {}     # {address: (stride, size of an entry, how it was found)}
+        self.copied_blocks = {}         # {address: (size, how it was found)}
         self.handed = set()             # the places the code hands over or keeps in a table (the anchors but
                                         # the constants of instructions)
 
@@ -83,6 +85,12 @@ class CodePatterns:
             self.position_of[address] = position
             if instruction.flow in ("jump", "branch") and instruction.target is not None:
                 self.comes_from.setdefault(instruction.target, []).append(position)
+        # a switch's cases come from its jump: the instruction that ends where its table starts
+        ends = {address + instruction.length: position for position, (address, instruction) in enumerate(self.ordered)}
+        for table, cases in getattr(self.analysis, "switch_tables", {}).items():
+            if table in ends:
+                for case in cases:
+                    self.comes_from.setdefault(case, []).append(ends[table])
 
     def pushes(self, position, argument):
         """The instructions that can push the stack argument 'argument' (0: the one pushed last) of the call at
@@ -124,27 +132,79 @@ class CodePatterns:
     def prologue(self, function):
         """(the position after it, {register: argument}) of what a function's prologue loads from its stack
         arguments: "movem.l REGISTERS, -(A7)" (or one register's move.l) then "move(a).l (d,A7), Rn", one after
-        the other"""
+        the other; or, with a frame ("link A6, #n", then maybe the movem), "move(a).l (d,A6), Rn"; the
+        arguments start at (8,A6)"""
         position = self.position_of.get(function)
         if position is None:
             return None, {}
         first = self.ordered[position][1]
+        frame = first.mnemonic == "link" and first.operands[0].reg == "A6"
+        if frame:
+            position += 1
+            first = self.ordered[position][1]
         saved = 0
         if first.mnemonic == "movem" and first.operands[1].mode == "predec" and first.operands[1].reg == "A7":
             saved, position = len(first.operands[0].registers), position + 1
         elif pushes_long(first) and first.mnemonic == "move" and first.operands[0].mode in ("areg", "dreg"):
             saved, position = 1, position + 1
+        base, start = ("A6", 8) if frame else ("A7", 4 * saved + 4)
         arguments = {}
         while position < len(self.ordered):
             instruction = self.ordered[position][1]
             operands = instruction.operands
             if instruction.mnemonic not in ("move", "movea") or instruction.size != "l" or len(operands) != 2 \
-                    or operands[0].mode != "disp" or operands[0].reg != "A7" \
+                    or operands[0].mode != "disp" or operands[0].reg != base \
                     or operands[1].mode not in ("areg", "dreg"):
                 break
-            arguments[operands[1].reg] = (operands[0].disp - 4 * saved - 4) // 4
+            arguments[operands[1].reg] = (operands[0].disp - start) // 4
             position += 1
         return position, arguments
+
+    def call_target(self, position):
+        """Where the call at 'position' goes: its target, or for "jsr (An)" the function the code put in An on
+        every way back to it ("movea.l #FUNCTION, An" or "lea FUNCTION, An", nothing writing An after it):
+        back from the call through the jumps and branches that come in; None if the ways disagree"""
+        instruction = self.ordered[position][1]
+        if instruction.flow != "call":
+            return None
+        if instruction.target is not None:
+            return instruction.target
+        operand = instruction.operands[0] if instruction.operands else None
+        if operand is None or operand.mode != "indirect":
+            return None
+        register, found, seen, work = operand.reg, set(), {position}, [position]
+        while work:
+            at = work.pop()
+            for step in self.before(at):
+                if step in seen:
+                    continue
+                seen.add(step)
+                if len(seen) > CALL_TARGET_WALKED:
+                    return None
+                loader = self.ordered[step][1]
+                operands = loader.operands
+                if len(operands) == 2 and operands[1].mode == "areg" and operands[1].reg == register and (
+                        (loader.mnemonic == "movea" and operands[0].mode == "immediate")
+                        or (loader.mnemonic == "lea" and operands[0].mode == "abs_long")):
+                    found.add(operands[0].value & 0xFFFFFF)
+                elif writes(loader, register) or self.ordered[step][0] in self.analysis.functions:
+                    return None
+                else:
+                    work.append(step)
+        if len(found) == 1 and next(iter(found)) in self.analysis.instructions:
+            return found.pop()
+        return None
+
+    def before(self, at):
+        """The positions the instruction at 'at' can come from: the one before it if it falls through, and the
+        jumps and branches that go to it"""
+        here = self.ordered[at][0]
+        found = list(self.comes_from.get(here, ()))
+        if at:
+            previous_address, previous = self.ordered[at - 1]
+            if previous_address + previous.length == here and previous.flow not in ("jump", "return"):
+                found.append(at - 1)
+        return found
 
     def passed(self, position, argument):
         """[(address, table)] of what the call at 'position' gets as its stack argument 'argument', where the code
@@ -163,7 +223,8 @@ class CodePatterns:
             if loader is not None and loader.mnemonic == "movea" and loader.operands[0].mode == "immediate" \
                     and loader.operands[1].reg == source.reg:
                 table = loader.operands[0].value & 0xFFFFFF
-                found.extend((long_at(self.image, table + 4 * index), table) for index in range(LEVELS))
+                if table + 4 * LEVELS <= len(self.image):
+                    found.extend((long_at(self.image, table + 4 * index), table) for index in range(LEVELS))
         return found
 
     def levels_set_before(self, function, depth=3):
@@ -242,6 +303,34 @@ class CodePatterns:
                 return False
         return False
 
+    def block_copy(self, position, address, instruction):
+        """A block the code copies as a whole (C's initialised local array or structure): "movea.l #BLOCK, An"
+        (or "lea BLOCK, An"), the destination into Am, then "move.l (An)+, (Am)+" (or .w, .b) one after the other:
+        as many bytes as they move"""
+        operands = instruction.operands
+        if len(operands) != 2 or operands[1].mode != "areg" or not (
+                (instruction.mnemonic == "movea" and operands[0].mode == "immediate")
+                or (instruction.mnemonic == "lea" and operands[0].mode == "abs_long")):
+            return
+        source = operands[1].reg
+        at = position + 1
+        if at < len(self.ordered) and self.ordered[at][1].mnemonic in ("lea", "movea") \
+                and self.ordered[at][1].operands[1].reg != source:
+            at += 1
+        size = 0
+        while at < len(self.ordered):
+            move = self.ordered[at][1]
+            moved = move.operands
+            if move.mnemonic != "move" or len(moved) != 2 or moved[0].mode != "postinc" or moved[0].reg != source \
+                    or moved[1].mode != "postinc":
+                break
+            size += {"b": 1, "w": 2, "l": 4}[move.size]
+            at += 1
+        if size > 1:
+            block = operands[0].value & 0xFFFFFF
+            if block + size <= len(self.image):
+                self.copied_blocks.setdefault(block, (size, f"copied at {address:06X}"))
+
     def spans_patterns(self, found):
         """The values by the level, an entry each, but the tables another subject describes and the entries
         inside another's (a table read as words of longs: "every 4, 2 read" inside "every 4, 4 read")"""
@@ -253,3 +342,5 @@ class CodePatterns:
             if first >= stop:
                 found.setdefault(first, (last, "values by level"))
             stop = max(stop, last)
+        for block, (size, _) in self.copied_blocks.items():
+            found.setdefault(block, (block + size, "copied block"))

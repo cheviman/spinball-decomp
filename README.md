@@ -24,7 +24,7 @@ As of 2026-11-13:
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
       calls in `tools/spinball_analysis.py`): 47,643 instructions in 430 functions, and every one of the 17,399 addresses the four scenarios
       execute is found; the 14 functions reached only through data are in `symbols.txt` with how they were found
-- [x] The cartridge's bytes classified: 16.4% code, 68.8% described data, 0.6% unknown; the rest is data the
+- [x] The cartridge's bytes classified: 16.4% code, 69.4% described data, 0.7% unknown; the rest is data the
       code reads or points at, waiting for its formats
 - [x] The uncompressed sprites: their format read from the code (`0D7D02`-`0D7FB0`), the six tables walked
       from where the code hands them over (`tools/data_walk.py`), and the 457 sprites extracted as one sheet
@@ -38,6 +38,7 @@ As of 2026-11-13:
       as text that builds back byte for byte, with a picture of each table's collision
 - [x] The palettes and their colour cycles, as text that builds back byte for byte; the tables' planes pictured
       in their own colours
+- [x] The texts, found from the code that reads them, as text that builds back byte for byte
 - [ ] The data with names and types, and the assets as editable files that build back byte for byte: sprites
       and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
       the GEMS music and samples

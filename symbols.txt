@@ -39,6 +39,12 @@
 0F3BB8  func  load_tiles
 0F5A5E  func  load_c2_tiles
 0F5A7A  func  decode_c2_tiles
+# the texts' functions (tools/walk_texts.py): a text's width in pixels, adding each character's from the font's
+# widths (0DE774-0DE798); the game's sprintf, its first argument the text it writes, its second the format, with
+# %d and %s (0D6A50); a message, its sixth argument the text, into the message slots from FF55AC (0DE9D4)
+0D6A50  func  format_text
+0DE774  func  text_width
+0DE9D4  func  show_message
 
 # ======== functions reached only through data ========
 
@@ -176,3 +182,5 @@
 # wraps at its length: four of 5 colours (0D729C), three of 6 (0D7870), three of 9 (0D791C: ten words apart), two
 # of 6 (0D799A)
 0BFD24  data  colour_cycles
+# the widths of the font's 128 characters, a byte each (text_width)
+0C1430  data  character_widths

@@ -38,6 +38,7 @@ import data_walk  # noqa: E402
 import walk_graphics  # noqa: E402
 import walk_levels  # noqa: E402
 import walk_patterns  # noqa: E402
+import walk_texts  # noqa: E402
 import spinball_compression as compression  # noqa: E402
 import spinball_graphics as graphics  # noqa: E402
 import spinball_levels as levels  # noqa: E402
@@ -258,6 +259,60 @@ def check_palettes(image, folder):
     return problems
 
 
+def text_line(data):
+    """A text's bytes, its 0 left out, with \\ and what is not printable as \\xNN"""
+    return "".join(chr(byte) if 0x20 <= byte < 0x7F and byte != 0x5C else f"\\x{byte:02X}" for byte in data[:-1])
+
+
+def parse_text_line(text):
+    data, at = bytearray(), 0
+    while at < len(text):
+        if text[at] == "\\":
+            data.append(int(text[at + 2:at + 4], 16))
+            at += 4
+        else:
+            data.append(ord(text[at]))
+            at += 1
+    return bytes(data) + b"\0"
+
+
+def write_texts(analysis, folder):
+    """texts.txt: each text the walk finds, where it goes, and whether an FF evens the place after it; the
+    widths of the font's characters"""
+    folder.mkdir(parents=True, exist_ok=True)
+    image, walk = analysis.image, data_walk.walk_of(analysis)
+    spans = walk.spans()
+    lines = ["# The texts (tools/walk_texts.py): \"text at ADDRESS[ pad]: TEXT\", each ending in a 0 the line leaves out",
+             "# (\\xNN for a byte that is not a printable character, \\x5C for \\); \"pad\": an FF follows it. Then the",
+             "# widths of the font's characters, by the character"]
+    for address, (size, _) in sorted(walk.texts.items()):
+        pad = " pad" if spans.get(address, (0,))[0] == address + size + 1 else ""
+        lines.append(f"text at {address:06X}{pad}: {text_line(image[address:address + size])}")
+    for table, (characters, _) in sorted(walk.char_widths.items()):
+        lines.append(f"widths at {table:06X}: " + " ".join(str(width) for width in image[table:table + characters]))
+    (folder / "texts.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
+    print(f"texts: {len(walk.texts)} texts -> {folder}")
+
+
+def check_texts(image, folder):
+    problems = 0
+    for line in (folder / "texts.txt").read_text(encoding="ascii").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        head, text = line.split(": ", 1) if ": " in line else (line.rstrip(":"), "")
+        words = head.split()
+        address = int(words[2], 16)
+        if words[0] == "text":
+            built = parse_text_line(text) + (bytes([walk_texts.TEXT_PAD]) if "pad" in words else b"")
+        else:
+            built = bytes(int(width) for width in text.split())
+        if built != image[address:address + len(built)]:
+            print(f"{head}: differs from the cartridge")
+            problems += 1
+    print("texts: " + ("identical" if not problems else f"{problems} differ"))
+    return problems
+
+
 def write_flippers(image, names, walk, folder):
     """flippers.txt: each table's flippers ("X Y FLAGS"), the shapes ("X0 Y0 X1 Y1 FLAGS NUMBER", as the
     collision's) and the boxes ("X0 Y0 X1 Y1 WORD"), each section with where it goes"""
@@ -331,13 +386,14 @@ def main():
     if "--check" in sys.argv:
         problems = check_sprites(image, out / "sprites") + check_tilesets(image, out / "tilesets") \
             + check_levels(image, out / "levels") + check_flippers(image, out / "levels") \
-            + check_palettes(image, out / "palettes")
+            + check_palettes(image, out / "palettes") + check_texts(image, out / "texts")
         print("all identical" if not problems else f"{problems} differ")
         return 1 if problems else 0
     write_sprites(analysis, names, out / "sprites")
     write_tilesets(analysis, names, out / "tilesets")
     write_levels(analysis, names, out / "levels")
     write_palettes(analysis, out / "palettes")
+    write_texts(analysis, out / "texts")
     return 0
 
 

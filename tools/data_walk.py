@@ -19,6 +19,7 @@ reads it; what it reads names more places. By subject:
                              and the tables' objects
   tools/walk_graphics.py     the tiles the loaders get, the palettes, the colour cycles
   tools/walk_levels.py       the planes' maps and brushes, the collision, the flippers, the tables' values
+  tools/walk_texts.py        the texts the functions that read them get
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -35,8 +36,9 @@ from walk_animations import AnimationWalk  # noqa: E402
 from walk_graphics import TILE_LOADERS, GraphicsWalk  # noqa: E402
 from walk_levels import LevelsWalk  # noqa: E402
 from walk_patterns import LEVELS, CodePatterns, long_at  # noqa: E402
+from walk_texts import TextsWalk  # noqa: E402
 
-class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk):
+class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
     """The walk: what each subject finds, from the code and from what it finds"""
 
     def __init__(self, analysis):
@@ -47,6 +49,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk):
         self.init_animations()
         self.init_graphics()
         self.init_levels()
+        self.init_texts()
 
     def run(self):
         self.index_code()
@@ -60,11 +63,13 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk):
                 self.tileset_load(position, address, instruction.target)
             self.level_pointer_store(position, address, instruction)
             self.level_value_load(position, address, instruction)
+            self.block_copy(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
         self.pair_planes()
         self.find_cycles()
+        self.walk_texts()
         self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables) \
             | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables) \
             | set(self.tilesets) | set(self.tileset_tables) | set(self.pointer_tables)
@@ -98,6 +103,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk):
         self.spans_patterns(found)
         self.spans_level_records(found)
         self.spans_c2_masks(found)
+        self.spans_texts(found)
         return found
 
 
