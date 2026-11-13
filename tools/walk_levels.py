@@ -192,20 +192,6 @@ class LevelsWalk:
                      if FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * position >= FLIPPER_SHAPES[1] + 4 * positions)
         self.flipper_boxes = (first, positions - first)
 
-    def past_maps(self):
-        """The bytes the drawers read past the maps: the row after each map's last (they draw a cell more than
-        the screen shows), and the brushes its words would name"""
-        past = set()
-        for where, brushes_at in self.plane_places:
-            width, rows, _ = self.maps[where]
-            after = where + 2 * width * rows
-            past.update(range(after, after + 2 * width))
-            for column in range(width):
-                word = struct.unpack_from(">H", self.image, after + 2 * column)[0]
-                first = brushes_at + levels.BRUSH_BYTES * (word & levels.BRUSH_NUMBER)
-                past.update(range(first, first + levels.BRUSH_BYTES))
-        return past
-
     def spans_levels(self, found):
         for table, (kind, _) in self.pointer_tables.items():
             found[table] = (table + 4 * LEVELS, f"{kind} by level")

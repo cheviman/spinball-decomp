@@ -20,10 +20,9 @@ Author:      Sebastian Toyos
                  follows.
   palettes       from 000DFC, 32 bytes each (tools/spinball_graphics.py), up to the next place the code hands over
                  (the sprites at 0013DC: 47); before them, the gaps of the shell sort at 0FE3AE (40, 13, 4, 1).
-  cycles         a table read by a counter that wraps (tools/walk_patterns.py): "move.w COUNTER.l, Dn; add.w Dn,
-                 Dn; movea.l #TABLE, An", read "(An,Dn.w)" right after, where the function wraps COUNTER at N (the
-                 nearest before the read, or else after it): N words; a colour cycle when the read goes to the
-                 palettes' copy (PALETTE_COPY): 0D6C2A's, BFD24-BFDC3.
+  cycles         the tables the core's analysis bounds by a counter that wraps ("cmpi.w #N, COUNTER; blt; clr.w
+                 COUNTER": tools/core/m68000/analysis.py, bound_tables()) whose read goes to the palettes' copy
+                 (PALETTE_COPY): 0D6C2A's colour cycles, BFD24-BFDC3.
 """
 import struct
 import sys
@@ -42,7 +41,6 @@ TILE_LOADERS = {                    # the functions that load tiles into the VRA
 }
 TILESET_PAD = 0xFF                  # what evens the place after tiles of an odd size
 C2_MASKS_SIZE = 8                   # four words: 1FF, 3FF, 7FF and FFF, the last not read (codes stop at 11 bits)
-C2_READ_PAST = 2                    # the C2 decoder reads a code as the three bytes from its first: past the end
 PALETTES = 0x000DFC                 # "movea.l #$dfc, A0" (0D8652, 0D87C8, 0D8922...): 32 bytes a palette
 PALETTE_COPY = 0xFF41C4             # the palettes the VBLANK's fades and cycles write to the CRAM from (0D863E)
 SORT_GAPS = 0x000DF4                # the gaps of the shell sort at 0FE3AE-0FE412, words down to 1
@@ -101,60 +99,22 @@ class GraphicsWalk:
             gaps += 1
         self.sort_gaps = gaps + 1
 
-    def cycle_load(self, position, address, instruction):
-        """A table read by a counter that wraps: "move.w COUNTER.l, Dn; add.w Dn, Dn; movea.l #TABLE, An", read
-        "(An,Dn.w)" right after, where the function wraps COUNTER at N ("cmpi.w #N, COUNTER.l; blt; clr.w
-        COUNTER.l", the nearest before the read, or else after it): N words. A colour cycle when the read goes to
-        the palettes' copy (PALETTE_COPY)"""
-        operands = instruction.operands
-        if instruction.mnemonic != "movea" or operands[0].mode != "immediate" or position < 2 \
-                or position + 1 >= len(self.ordered):
-            return
-        scale, load = self.ordered[position - 1][1], self.ordered[position - 2][1]
-        if scale.mnemonic != "add" or len(scale.operands) != 2 or scale.operands[0].mode != "dreg" \
-                or scale.operands[0].reg != scale.operands[1].reg:
-            return
-        if load.mnemonic != "move" or load.size != "w" or load.operands[0].mode != "abs_long" \
-                or load.operands[1].reg != scale.operands[0].reg:
-            return
-        counter = load.operands[0].value & 0xFFFFFF
-        reader = self.ordered[position + 1][1]
-        if not any(operand.mode == "index" and operand.reg == operands[1].reg for operand in reader.operands):
-            return
-        function = self.function_of(address)
-        first = self.position_of.get(function, position)
-        last = position
-        while last + 3 < len(self.ordered) and self.function_of(self.ordered[last + 1][0]) == function:
-            last += 1
-        for at in list(range(position - 3, first - 1, -1)) + list(range(position, last - 1)):
-            if self.wraps(at, counter):
-                compare = self.ordered[at][1]
-                destination = reader.operands[-1]
-                colour = destination.mode == "abs_long" \
-                    and PALETTE_COPY <= destination.value & 0xFFFFFF < PALETTE_COPY + 4 * graphics.PALETTE_BYTES
-                table = operands[0].value & 0xFFFFFF
-                self.cycles.setdefault(table, (compare.operands[0].value, 2, "colour cycle" if colour else "cycle",
-                                               f"read at {reader.address:06X} by {counter:06X}, which wraps at "
-                                               f"{compare.address:06X}"))
-                return
-
-    def c2_read_past(self):
-        """The bytes the C2 decoder reads past each C2 stream's end"""
-        past = set()
-        for address, (kind, size, _) in self.tilesets.items():
-            if kind.startswith("C2"):
-                past.update(range(address + size, address + size + C2_READ_PAST))
-        return past
-
     def spans_graphics(self, found):
         for address, (kind, size, _) in self.tilesets.items():
             found[address] = (address + size, kind)
         for table in self.tileset_tables:
             found[table] = (table + 4 * LEVELS, "tilesets by level")
 
+    def find_cycles(self):
+        """The colour cycles: the tables the core's analysis bounds by a counter that wraps (bounded_tables) whose
+        read goes to the palettes' copy (PALETTE_COPY)"""
+        for table, (entries, stride, size, reader, bound, kind) in self.analysis.bounded_tables.items():
+            destination = self.analysis.instructions[reader].operands[-1]
+            if kind == "counter" and destination.mode == "abs_long" \
+                    and PALETTE_COPY <= destination.value & 0xFFFFFF < PALETTE_COPY + 4 * graphics.PALETTE_BYTES:
+                self.cycles[table] = (entries, size, "colour cycle", f"read at {reader:06X}, wrapped at {bound:06X}")
+
     def spans_palettes(self, found):
-        for table, (entries, size, kind, _) in self.cycles.items():
-            found.setdefault(table, (table + entries * size, kind))
         for index in range(self.palettes):
             first = PALETTES + graphics.PALETTE_BYTES * index
             found[first] = (first + graphics.PALETTE_BYTES, "palette")

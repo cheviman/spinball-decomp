@@ -30,4 +30,14 @@ REFERENCE = "mdref"                             # the reference (tools/console/m
 ANALYSIS = "spinball_analysis"                  # the core's 68000 analysis with this compiler's ways (tools/spinball_analysis.py)
 DISASSEMBLER = "m68000.disassembler"
 CODE_START = 0x000200                           # after the vectors (000000-0000FF) and the header (000100-0001FF)
-DATA_WALK = "data_walk"                         # the data the engines take, walked (tools/data_walk.py: sprite tables)
+DATA_WALK = "data_walk"                         # the data the engines take, walked (tools/data_walk.py)
+READERS = {                                     # the code that reads each kind of data: the coverage says, for
+    "animation engine": [(0x0D58B0, 0x0D60E2)], # each, what it read that no table describes
+    "SSC decoder": [(0x0D6B88, 0x0D6C2A)],
+    "tile loader": [(0x0F3BB8, 0x0F3C06)],
+    "C2 decoder": [(0x0F5A7A, 0x0F5B9E)],
+    "plane drawers": [(0x0D8D0E, 0x0D8F22)],
+    "collision code": [(0x0DB900, 0x0DBCEA), (0x0DBD1E, 0x0DBF62), (0x0DC3DE, 0x0DCE40), (0x0DCFC0, 0x0DDCC4),
+                       (0x0DE08E, 0x0DE774), (0x0E1D10, 0x0E1ECA)],
+    "palette code": [(0x0D6C2A, 0x0D7AB8), (0x0D85A0, 0x0D85F4), (0x0D863E, 0x0D8674), (0x0D873A, 0x0D8BB6)],
+}

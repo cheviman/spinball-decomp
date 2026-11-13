@@ -17,8 +17,6 @@ How long a table is, the code that reads it says with the bound of its index; he
                  or nothing, "movea.l #TABLE, An", and "(An,Dn.w)" read right after (or where a "bra" goes):
                  four entries as far apart as the scale says, each as big as the read (the collision's what
                  touching does at C06BA-C0705, the tables' sizes, and others).
-  counters       a counter that wraps ("cmpi.w #N, COUNTER.l; blt; clr.w COUNTER.l": wraps()) reads tables of N
-                 entries (tools/walk_graphics.py's colour cycles).
 """
 import struct
 import sys
@@ -243,14 +241,6 @@ class CodePatterns:
             if writes(instruction, register):
                 return False
         return False
-
-    def wraps(self, at, counter):
-        """Whether the instructions at 'at' wrap 'counter' ("cmpi.w #N, COUNTER.l; blt; clr.w COUNTER.l")"""
-        compare, branch, clear = (self.ordered[at + step][1] for step in range(3))
-        return compare.mnemonic == "cmpi" and compare.size == "w" and compare.operands[1].mode == "abs_long" \
-            and compare.operands[1].value & 0xFFFFFF == counter and branch.mnemonic == "bcc" \
-            and branch.condition == "lt" and clear.mnemonic == "clr" and clear.operands[0].mode == "abs_long" \
-            and clear.operands[0].value & 0xFFFFFF == counter
 
     def spans_patterns(self, found):
         """The values by the level, an entry each, but the tables another subject describes and the entries

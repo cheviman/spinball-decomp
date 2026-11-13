@@ -8,9 +8,8 @@ Modified:    13-11-2026
 Author:      Sebastian Toyos
 
 Usage: python tools/data_walk.py [cartridge] [--reads FOLDER]
-(the coverage takes spans() through the profile's DATA_WALK; with --reads, the report lists what the code that
-reads the walked data (READERS) read in the scenarios' runs that the walk does not have, and the animations'
-bytes other code reads)
+(the coverage takes spans() through the profile's DATA_WALK, and says what each of the profile's READERS read
+in the scenarios that no table describes; with --reads, the report lists the animations' bytes other code reads)
 
 The walk starts where the code hands its data over or keeps it, and reads each place as the code that takes it
 reads it; what it reads names more places. By subject:
@@ -25,7 +24,6 @@ A place that does not read as what it is taken for stops the walk with what is w
 import glob
 import importlib
 import sys
-from collections import defaultdict
 from pathlib import Path
 
 TOOLS = Path(__file__).resolve().parent
@@ -37,19 +35,6 @@ from walk_animations import AnimationWalk  # noqa: E402
 from walk_graphics import TILE_LOADERS, GraphicsWalk  # noqa: E402
 from walk_levels import LevelsWalk  # noqa: E402
 from walk_patterns import LEVELS, CodePatterns, long_at  # noqa: E402
-
-READERS = {                         # the code that reads what the walk has (for the report)
-    "animation engine": (0x0D58B0, 0x0D60E2),
-    "SSC decoder": (0x0D6B88, 0x0D6C2A),
-    "tile loader": (0x0F3BB8, 0x0F3C06),
-    "C2 decoder": (0x0F5A7A, 0x0F5B9E),
-    "plane drawers": (0x0D8D0E, 0x0D8F22),
-}
-READER_FUNCTIONS = {                # the same, as the functions that make it up
-    "collision code": (0x0DB900, 0x0DBC60, 0x0DBD1E, 0x0DC3DE, 0x0DCBB0, 0x0DCDFE, 0x0DCFC0, 0x0DE08E, 0x0E1D10),
-    "palette code": (0x0D6C2A, 0x0D85A0, 0x0D863E, 0x0D873A),
-}
-
 
 class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk):
     """The walk: what each subject finds, from the code and from what it finds"""
@@ -75,11 +60,11 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk):
                 self.tileset_load(position, address, instruction.target)
             self.level_pointer_store(position, address, instruction)
             self.level_value_load(position, address, instruction)
-            self.cycle_load(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
         self.pair_planes()
+        self.find_cycles()
         self.anchors = set(self.definitions) | set(self.level_tables) | set(self.list_tables) \
             | {table for table, _ in lists} | set(self.sprite_tables) | set(self.object_tables) \
             | set(self.tilesets) | set(self.tileset_tables) | set(self.pointer_tables)
@@ -142,45 +127,24 @@ def spans(analysis):
 
 
 def check_reads(walk, folder):
-    """Against the scenarios' rom_reads.txt: the bytes each of READERS read that the walk does not have, and the
-    walked animation bytes other code reads"""
+    """Against the scenarios' rom_reads.txt: the walked animation bytes code other than the animation engine reads
+    (what each reader reads that no table describes, the core's coverage says, by the profile's READERS)"""
+    engine = game_profile.READERS["animation engine"]
     step_bytes = set()
     for address, step in walk.steps.items():
         step_bytes.update(range(address, address + step.length))
-    walked = set(step_bytes)
-    for first, (stop, kind) in walk.spans().items():
-        walked.update(range(first, stop))
-    walked |= walk.c2_read_past()
-    walked |= walk.past_maps()
-    by_reader, others = defaultdict(lambda: defaultdict(set)), defaultdict(set)
+    others = set()
     for path in glob.glob(str(Path(folder) / "**" / "rom_reads.txt"), recursive=True):
         for line in open(path, encoding="ascii"):
             if line.startswith("#") or not line.strip():
                 continue
             pc, span = line.split()
             first, last = (int(value, 16) for value in span.split("-"))
-            pc = int(pc, 16)
-            reader = next((name for name, (start, stop) in READERS.items() if start <= pc < stop), None) \
-                or next((name for name, functions in READER_FUNCTIONS.items() if walk.function_of(pc) in functions),
-                        None)
-            for address in range(first, last + 1):
-                (by_reader[reader] if reader else others)[address].add(pc)
-    for reader in list(READERS) + list(READER_FUNCTIONS):
-        read = by_reader[reader]
-        missing = sorted(set(read) - walked)
-        runs = []
-        for address in missing:
-            if runs and address - runs[-1][1] <= 2:
-                runs[-1][1] = address
-            else:
-                runs.append([address, address])
-        print(f"read by the {reader}: {len(read)} bytes; not walked: {len(missing)} in {len(runs)} runs"
-              + ("\n  " + " ".join(f"{first:06X}-{last:06X}" for first, last in runs[:40]) if runs else "")
-              + (" ..." if len(runs) > 40 else ""))
-    steps_read = {address for address in step_bytes if address in others}
+            if not any(start <= int(pc, 16) < stop for start, stop in engine):
+                others.update(range(first, last + 1))
+    steps_read = sorted(step_bytes & others)
     print(f"walked animation bytes other code reads: {len(steps_read)}"
-          + ("  " + " ".join(f"{address:06X}" for address in sorted(steps_read)[:20]) if steps_read else ""))
-
+          + ("  " + " ".join(f"{address:06X}" for address in steps_read[:20]) if steps_read else ""))
 
 
 def main():
