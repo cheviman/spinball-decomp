@@ -83,6 +83,8 @@ have, and the animations' bytes other code reads)
                  level, as many as FLIPPER_COUNTS says; their collision's shapes, lists like a sector's, by the
                  flipper's position (as many as the table holds before the next one), one table a side; and their
                  boxes by the position, those after the first (whose place the shapes' second table takes).
+  palettes       from 000DFC, 32 bytes each (tools/spinball_graphics.py), up to the next place the code hands over
+                 (the sprites at 0013DC: 47); before them, the gaps of the shell sort at 0FE3AE (40, 13, 4, 1).
   values         a table the code reads by the level: "move.w FF75B0.l, Dn", "add.w Dn, Dn" or "lsl.w #2, Dn"
                  or nothing, "movea.l #TABLE, An", and "(An,Dn.w)" read right after (or where a "bra" goes):
                  four entries as far apart as the scale says, each as big as the read (the collision's what
@@ -131,6 +133,7 @@ READERS = {                         # the code that reads what the walk has (for
 }
 READER_FUNCTIONS = {                # the same, as the functions that make it up
     "collision code": (0x0DB900, 0x0DBC60, 0x0DBD1E, 0x0DC3DE, 0x0DCBB0, 0x0DCDFE, 0x0DCFC0, 0x0DE08E, 0x0E1D10),
+    "palette code": (0x0D6C2A, 0x0D85A0, 0x0D863E, 0x0D873A),
 }
 C2_READ_PAST = 2                    # the C2 decoder reads a code as the three bytes from its first: past the end
 LEVEL_POINTERS = {                  # where the code keeps an entry of a table by the level, and what it is
@@ -139,6 +142,9 @@ LEVEL_POINTERS = {                  # where the code keeps an entry of a table b
     0xFFF1F4: "collision",          # read by 0DC3DE, 0DCB78, 0E1D10 and the tests 0DB900, 0DBC60
 }
 LEVEL_SIZES = 0x0BFC70              # the tables' width and height in pixels, two words each (0D4036)
+PALETTES = 0x000DFC                 # "movea.l #$dfc, A0" (0D8652, 0D87C8, 0D8922...): 32 bytes a palette
+PALETTE_COPY = 0xFF41C4             # the palettes the VBLANK's fades and cycles write to the CRAM from (0D863E)
+SORT_GAPS = 0x000DF4                # the gaps of the shell sort at 0FE3AE-0FE412, words down to 1
 FLIPPERS = 0x0C08BE                 # by the level: the table's flippers (0DDEE0), 10 bytes each (0DDEF0)
 FLIPPER_COUNTS = 0x0C08EE           # by the level: how many (0DDEC8, FF58C4), a word each
 FLIPPER_SHAPES = (0x0C0A86, 0x0C0A96)   # by the flipper's position, a side each (0DE53C, 0DE530)
@@ -221,6 +227,9 @@ class Walk:
         self.value_tables_by_level = {}     # {address: (stride, size of an entry, how it was found)}
         self.flipper_shapes = {}        # {address: (size in bytes, how it was found)}
         self.flipper_boxes = (0, 0)     # (first, count) of the boxes walked
+        self.palettes = 0               # how many palettes from PALETTES
+        self.cycles = {}                # {address: (entries, entry size, kind, how it was found)}
+        self.sort_gaps = 0              # how many words from SORT_GAPS
         self.tilesets = {}              # {address: (kind, size in bytes, how it was found)}
         self.tileset_tables = {}        # {address: how it was found}: tables of four tilesets, a level each
         self.ordered = []               # [(address, Instruction)] of the analysis, in address order
@@ -244,6 +253,7 @@ class Walk:
                 self.tileset_load(position, address, instruction.target)
             self.level_pointer_store(position, address, instruction)
             self.level_value_load(position, address, instruction)
+            self.cycle_load(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
@@ -267,6 +277,8 @@ class Walk:
         self.walk_definitions()
         for descriptor in sorted(self.descriptors):
             self.add_sprite_table(long_at(self.image, descriptor), f"descriptor {descriptor:06X}")
+        self.handed |= set(self.sprite_tables)
+        self.walk_palettes()
 
     def pushes(self, position, argument):
         """The instructions that can push the stack argument 'argument' (0: the one pushed last) of the call at
@@ -446,6 +458,51 @@ class Walk:
                     self.value_tables_by_level.setdefault(table, (stride, size, f"read at {reader.address:06X}"))
                 return
 
+    def cycle_load(self, position, address, instruction):
+        """A table read by a counter that wraps: "move.w COUNTER.l, Dn; add.w Dn, Dn; movea.l #TABLE, An", read
+        "(An,Dn.w)" right after, where the function wraps COUNTER at N ("cmpi.w #N, COUNTER.l; blt; clr.w
+        COUNTER.l", the nearest before the read, or else after it): N words. A colour cycle when the read goes to
+        the palettes' copy (PALETTE_COPY)"""
+        operands = instruction.operands
+        if instruction.mnemonic != "movea" or operands[0].mode != "immediate" or position < 2 \
+                or position + 1 >= len(self.ordered):
+            return
+        scale, load = self.ordered[position - 1][1], self.ordered[position - 2][1]
+        if scale.mnemonic != "add" or len(scale.operands) != 2 or scale.operands[0].mode != "dreg" \
+                or scale.operands[0].reg != scale.operands[1].reg:
+            return
+        if load.mnemonic != "move" or load.size != "w" or load.operands[0].mode != "abs_long" \
+                or load.operands[1].reg != scale.operands[0].reg:
+            return
+        counter = load.operands[0].value & 0xFFFFFF
+        reader = self.ordered[position + 1][1]
+        if not any(operand.mode == "index" and operand.reg == operands[1].reg for operand in reader.operands):
+            return
+        function = self.function_of(address)
+        first = self.position_of.get(function, position)
+        last = position
+        while last + 3 < len(self.ordered) and self.function_of(self.ordered[last + 1][0]) == function:
+            last += 1
+        for at in list(range(position - 3, first - 1, -1)) + list(range(position, last - 1)):
+            if self.wraps(at, counter):
+                compare = self.ordered[at][1]
+                destination = reader.operands[-1]
+                colour = destination.mode == "abs_long" \
+                    and PALETTE_COPY <= destination.value & 0xFFFFFF < PALETTE_COPY + 4 * graphics.PALETTE_BYTES
+                table = operands[0].value & 0xFFFFFF
+                self.cycles.setdefault(table, (compare.operands[0].value, 2, "colour cycle" if colour else "cycle",
+                                               f"read at {reader.address:06X} by {counter:06X}, which wraps at "
+                                               f"{compare.address:06X}"))
+                return
+
+    def wraps(self, at, counter):
+        """Whether the instructions at 'at' wrap 'counter' ("cmpi.w #N, COUNTER.l; blt; clr.w COUNTER.l")"""
+        compare, branch, clear = (self.ordered[at + step][1] for step in range(3))
+        return compare.mnemonic == "cmpi" and compare.size == "w" and compare.operands[1].mode == "abs_long" \
+            and compare.operands[1].value & 0xFFFFFF == counter and branch.mnemonic == "bcc" \
+            and branch.condition == "lt" and clear.mnemonic == "clr" and clear.operands[0].mode == "abs_long" \
+            and clear.operands[0].value & 0xFFFFFF == counter
+
     def pair_planes(self):
         """The maps and their brushes from what the code keeps: each brushes after the map kept just before it"""
         last_map = None
@@ -566,6 +623,17 @@ class Walk:
         first = next(position for position in range(positions)
                      if FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * position >= FLIPPER_SHAPES[1] + 4 * positions)
         self.flipper_boxes = (first, positions - first)
+
+    def walk_palettes(self):
+        """The palettes, up to the next place the code hands over; and the sort's gaps, down to 1"""
+        for table in (PALETTES, SORT_GAPS):
+            if table not in self.anchors:
+                raise SystemExit(f"{table:06X}: no instruction names it")
+        self.palettes = (self.next_handed(PALETTES) - PALETTES) // graphics.PALETTE_BYTES
+        gaps = 0
+        while struct.unpack_from(">H", self.image, SORT_GAPS + 2 * gaps)[0] != 1:
+            gaps += 1
+        self.sort_gaps = gaps + 1
 
     def past_maps(self):
         """The bytes the drawers read past the maps: the row after each map's last (they draw a cell more than
@@ -820,6 +888,13 @@ class Walk:
             found[address] = (address + 2 * width * rows, "map")
         for address, (_, size, _) in self.collisions.items():
             found[address] = (address + size, "collision")
+        for table, (entries, size, kind, _) in self.cycles.items():
+            found.setdefault(table, (table + entries * size, kind))
+        for index in range(self.palettes):
+            first = PALETTES + graphics.PALETTE_BYTES * index
+            found[first] = (first + graphics.PALETTE_BYTES, "palette")
+        if self.sort_gaps:
+            found[SORT_GAPS] = (SORT_GAPS + 2 * self.sort_gaps, "sort gaps")
         if self.flippers:
             found[FLIPPERS] = (FLIPPERS + 4 * LEVELS, "flippers by level")
             found[FLIPPER_COUNTS] = (FLIPPER_COUNTS + 2 * LEVELS, "flipper counts by level")

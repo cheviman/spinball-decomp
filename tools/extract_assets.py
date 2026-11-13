@@ -40,6 +40,7 @@ import spinball_graphics as graphics  # noqa: E402
 import spinball_levels as levels  # noqa: E402
 
 GREYS = [(level, level, level) for level in range(0, 256, 17)]
+LEVEL_PALETTES = 0x0BFC50       # the palettes of a table's four lines (tools/data_walk.py's LEVEL_VALUES)
 
 
 def load():
@@ -201,9 +202,57 @@ def write_levels(analysis, names, folder):
             picture = levels.plane_pens(levels.read_map(image, where, width, rows),
                                         levels.read_brushes(image, brushes_at, walk.brushes[brushes_at][0]), tiles)
             name = names.get(where, f"map_{where:06X}").removesuffix("_map")
-            asset_formats.write_png_indexed(folder / f"{name}_plane.png", picture, GREYS, 4)
+            numbers = struct.unpack_from(">4H", image, LEVEL_PALETTES + 8 * level)
+            palettes = graphics.read_palettes(image, data_walk.PALETTES, walk.palettes)
+            colours = [graphics.rgb(word) for number in numbers for word in palettes[number]]
+            asset_formats.write_png_indexed(folder / f"{name}_plane.png", picture, colours, 8)
             pictures += 1
     print(f"levels: {len(walk.maps)} maps, {len(walk.brushes)} brushes, {pictures} pictures -> {folder}")
+
+
+def write_palettes(analysis, folder):
+    """palettes.txt (the palettes and the colour cycles, each as the words the CRAM takes) and a picture"""
+    folder.mkdir(parents=True, exist_ok=True)
+    image, walk = analysis.image, data_walk.walk_of(analysis)
+    palettes = graphics.read_palettes(image, data_walk.PALETTES, walk.palettes)
+    lines = ["# The palettes (16 words each, 0000BBB0GGG0RRR0 as the CRAM takes them) and the colour cycles the game",
+             "# writes over some of their colours; each says where it goes (for --check): tools/spinball_graphics.py",
+             f"palettes at {data_walk.PALETTES:06X}"]
+    lines += graphics.palettes_text(palettes).splitlines()
+    for table, (entries, size, kind, found) in sorted(walk.cycles.items()):
+        words = struct.unpack_from(f">{entries}H", image, table)
+        lines.append(f"{kind.replace(' ', '_')} at {table:06X}: " + " ".join(f"{word:04X}" for word in words)
+                     + f"  # {found}")
+    (folder / "palettes.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
+    rows, colours = graphics.palettes_picture(palettes)
+    asset_formats.write_png_indexed(folder / "palettes.png", rows, colours, 8)
+    print(f"palettes: {len(palettes)} palettes, {len(walk.cycles)} cycles -> {folder}")
+
+
+def check_palettes(image, folder):
+    problems, palettes, base = 0, [], None
+    for line in (folder / "palettes.txt").read_text(encoding="ascii").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("palettes at"):
+            base = int(line.split()[2], 16)
+        elif line.startswith("palette "):
+            palettes.append(line)
+        else:
+            head, words = line.split(":")
+            address = int(head.split()[2], 16)
+            built = b"".join(struct.pack(">H", int(word, 16)) for word in words.split())
+            if built != image[address:address + len(built)]:
+                print(f"{head}: differs from the cartridge")
+                problems += 1
+    built = graphics.palettes_bytes(graphics.parse_palettes_text("\n".join(palettes)))
+    if built != image[base:base + len(built)]:
+        print(f"palettes at {base:06X}: differ from the cartridge")
+        problems += 1
+    print(f"palettes: {len(palettes)} palettes and the cycles, "
+          + ("identical" if not problems else f"{problems} differ"))
+    return problems
 
 
 def write_flippers(image, names, walk, folder):
@@ -278,12 +327,14 @@ def main():
     out = Path(sys.argv[out_at + 1]) if out_at is not None else game_profile.ROOT / "assets"
     if "--check" in sys.argv:
         problems = check_sprites(image, out / "sprites") + check_tilesets(image, out / "tilesets") \
-            + check_levels(image, out / "levels") + check_flippers(image, out / "levels")
+            + check_levels(image, out / "levels") + check_flippers(image, out / "levels") \
+            + check_palettes(image, out / "palettes")
         print("all identical" if not problems else f"{problems} differ")
         return 1 if problems else 0
     write_sprites(analysis, names, out / "sprites")
     write_tilesets(analysis, names, out / "tilesets")
     write_levels(analysis, names, out / "levels")
+    write_palettes(analysis, out / "palettes")
     return 0
 
 

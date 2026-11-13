@@ -91,6 +91,11 @@ also exists.
   only; bit 7 preferred) and the number of the object or flag. The community's "collision tiles" of 128x128 are
   these sectors. The flippers' collision is a list of the same kind by their position (2 circles, 2 segments),
   one table a side (C0A86, C0A96 for the mirrored); their places come by the table from C08BE.
+- **The palettes** (`tools/spinball_graphics.py`): 47 from 000DFC, 32 bytes each (the forum's "47 palettes";
+  the 8 bytes before them, 40 13 4 1, are the gaps of the shell sort at 0FE3AE). 0D8674 sets the number each of
+  the four lines takes (FF004C), 0D863E copies it to FF41C4, and the VBLANK's 0D873A fades and writes them. A
+  table's four come from BFC50; in the reference's CRAM they are all there but the colours the cycles of 0D6C2A
+  write over them (BFD24-BFDC3: tables of 5, 6, 9 and 6 colours, each read by a counter that wraps).
 - The code at 0D91FC reads the flags (+8) of a record through a pointer that can be 0: it reads the cartridge's
   bytes 000008-000009 (the C has to read them the same way).
 - Compression: **SSC** (an LZSS) for the tables' tiles, the HUD's and the options'; **C2** (an LZW of 9 to

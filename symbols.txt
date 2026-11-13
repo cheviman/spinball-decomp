@@ -73,6 +73,10 @@
 
 # ======== data ========
 
+# the palettes (tools/spinball_graphics.py; assets/palettes): 47 of 16 colours, by the number FF004C keeps for each
+# line (0D8674 sets it, 0D863E and 0D873A copy and fade them); before them, the gaps of the shell sort at 0FE3AE
+000DF4  data  sort_gaps
+000DFC  data  palettes
 # the sprite tables (tools/spinball_graphics.py; the loader at 0D7D02 reads one through what an object's field 3A
 # points at, field 0A). tools/data_walk.py finds them all from the code: through the definitions the code hands
 # make_animated_object and their sprite descriptors, and where the code stores one itself. The names say what
@@ -168,3 +172,7 @@
 0BFC80  data  level_starts
 0BFC90  data  level_music
 0BFC98  data  level_countdowns
+# the colour cycles the palette animations (0D6C2A) write over a table's palettes, each read by a counter that
+# wraps at its length: four of 5 colours (0D729C), three of 6 (0D7870), three of 9 (0D791C: ten words apart), two
+# of 6 (0D799A)
+0BFD24  data  colour_cycles

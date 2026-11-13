@@ -1,7 +1,7 @@
 """
 Name:        spinball_graphics.py
 Description: Sonic the Hedgehog Spinball's graphics formats: the sprite tables, read and built back byte for byte,
-             and their sheets
+             and their sheets; the tiles' sheets; the palettes
 Version:     0.1.0
 Created:     13-11-2026
 Modified:    13-11-2026
@@ -20,6 +20,10 @@ A sheet lays a table's sprites out a row at a time: each sprite drawn whole, its
 the pieces of a sprite overlap: checked), in a cell as big as all of them. sprites.txt says where: per sprite its
 cell's corner in the sheet and where its origin is, and each piece's place and size; the sheet's pixels give the
 pens back.
+
+The palettes, from 000DFC (0D863E, 0D873A: the number FF004C keeps for each of the four lines, 32 bytes a palette,
+"lsl.w #5"): 16 words each, as the CRAM takes them (0000BBB0GGG0RRR0), up to the sprites at 0013DC: 47. Their text
+form is a line a palette, its 16 words in hex.
 """
 import struct
 from dataclasses import dataclass, field
@@ -222,3 +226,53 @@ def tiles_from_sheet(rows, size):
         x = (tile % TILES_ACROSS) * TILE_SIZE + 2 * column
         data.append(rows[y][x] << 4 | rows[y][x + 1])
     return bytes(data)
+
+
+# ---- palettes ----
+
+PALETTE_COLORS = 16
+PALETTE_BYTES = 2 * PALETTE_COLORS     # a word a colour, as the VDP's CRAM takes it: 0000BBB0GGG0RRR0
+
+
+def read_palettes(image, address, count):
+    """[[16 words]] of 'count' palettes"""
+    return [list(struct.unpack_from(f">{PALETTE_COLORS}H", image, address + PALETTE_BYTES * index))
+            for index in range(count)]
+
+
+def palettes_bytes(palettes):
+    return b"".join(struct.pack(f">{PALETTE_COLORS}H", *colors) for colors in palettes)
+
+
+def rgb(word):
+    """A CRAM word's colour as 8-bit red, green, blue (each of the three levels' 0-7 over 7)"""
+    return tuple(round(((word >> shift) & 0x0E) / 2 * 255 / 7) for shift in (0, 4, 8))
+
+
+def palettes_text(palettes):
+    lines = [f"palette {index}: " + " ".join(f"{word:04X}" for word in colors) for index, colors in enumerate(palettes)]
+    return "\n".join(lines) + "\n"
+
+
+def parse_palettes_text(text):
+    palettes = []
+    for line in text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
+        number, words = line.removeprefix("palette").split(":")
+        if int(number) != len(palettes):
+            raise ValueError(f"palette {number.strip()} out of order (expected {len(palettes)})")
+        palettes.append([int(word, 16) for word in words.split()])
+    return palettes
+
+
+def palettes_picture(palettes, swatch=8):
+    """(rows of indices, the colours) of a picture of the palettes: a row of 16 swatches each"""
+    colors = sorted({word for colors in palettes for word in colors})
+    index = {word: number for number, word in enumerate(colors)}
+    rows = []
+    for palette in palettes:
+        line = [index[word] for word in palette for _ in range(swatch)]
+        rows += [list(line) for _ in range(swatch)]
+    return rows, [rgb(word) for word in colors]

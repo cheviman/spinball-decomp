@@ -157,8 +157,9 @@ def parse_brushes_text(text):
 
 
 def plane_pens(rows, brushes, tiles):
-    """A picture of a plane, rows of pens: each cell's tile from 'tiles' (the plane's own, 32 bytes each),
-    mirrored as the cell says (its palette line and priority are not in a picture of pens)"""
+    """A picture of a plane, rows of colours: each cell's tile from 'tiles' (the plane's own, 32 bytes each),
+    mirrored as the cell says, each pen with the cell's palette line over it (line * 16 + pen: 0-63; the
+    priority is not in a picture)"""
     width, height = len(rows[0]) * BRUSH * 8, len(rows) * BRUSH * 8
     count = len(tiles) // 32
     picture = [[0] * width for _ in range(height)]
@@ -171,7 +172,8 @@ def plane_pens(rows, brushes, tiles):
             data = tiles[32 * tile:32 * tile + 32]
             for row in range(8):
                 source = 7 - row if cell & MIRROR_Y else row
-                line = [pen for byte in data[4 * source:4 * source + 4] for pen in (byte >> 4, byte & 15)]
+                line = [16 * (cell >> 13 & 3) + pen for byte in data[4 * source:4 * source + 4]
+                        for pen in (byte >> 4, byte & 15)]
                 if cell & MIRROR_X:
                     line.reverse()
                 picture[8 * y + row][8 * x:8 * x + 8] = line
