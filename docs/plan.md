@@ -2,8 +2,8 @@
 
 The decompilation follows the method arcade-decomp's games follow (TMNT, OutRunners, SegaSonic, The Simpsons):
 C that does exactly what the original does, checked frame by frame against the reference, with nothing of the
-ROM in the game. Then two products from the same C: a Mega Drive ROM that never lags (built from the C with a
-modern compiler), and a port with an arcade's presentation (vertical and wide views).
+ROM in the game. The decompilation is only that: what is later built on the finished C is a project of its own,
+and nothing of it (speed, optimisation, new targets) decides or goes into this one.
 
 Each step has the check that says it is done.
 
@@ -17,8 +17,6 @@ Each step has the check that says it is done.
 | 6 | Lift and scaffold: the program translated an instruction at a time, running natively on console-decomp's runtime | the scenarios give the reference's state hashes frame by frame | not started (the core has the 68000's: m68000/lift.py, translate.py) |
 | 7 | The decompiled C | the scenarios frame by frame (state, picture, sound), the structure check at 0, the noise meter at its explained minimum, no read of the ROM by address | not started (the core's m68000/decompile.py) |
 | 8 | The SDL build for Windows | it boots, looks and sounds right, plays a table, a script gives the reference's frames | — |
-| 9 | The ROM from the C, at 60 fps | built with a modern GCC for the 68000; the scenarios' state per step the same as the original's; mdref's load report: 0 frames lost on every scenario, on the console's timing | — |
-| 10 | The arcade port: vertical and wide | (its own plan, after 8) | — |
 
-Measures behind step 9: docs/performance.md. What is known of the game: docs/research.md. The console's references:
+What is known of the game: docs/research.md. The console's references:
 tools/console/megadrive/docs/references.md.

@@ -2,11 +2,7 @@
 
 A decompilation of Sega's 1993 Mega Drive / Genesis game *Sonic the Hedgehog Spinball* (a 68000 program
 written in C, with a Z80 running the GEMS sound driver) into readable C that does exactly what the original
-does, checked frame by frame against MAME's cores. It is on its way to two things built from that same C:
-
-- **a Mega Drive ROM that never slows down**: the original loses about a fifth to a third of its frames on
-  every table (see "Status"); the goal is every frame on time on a stock console, with all of the game in it;
-- **a native port with an arcade's presentation**, with a vertical view of the table besides the wide one.
+does, checked frame by frame against MAME's cores.
 
 **This repository contains no game data.** You bring your own cartridge dump; the tools check it, and
 everything they take from it stays on your computer.
@@ -46,17 +42,7 @@ As of 2026-11-13:
       and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
       the GEMS music and samples
 - [ ] The decompiled C, checked frame by frame (state, picture, sound) against the reference
-- [ ] The game in a window on Windows (SDL), then the ROM built from the C with a modern GCC, then the port
-
-The load, measured with `mdref` (`docs/performance.md`; the console's timing comes from Sega's manuals and
-BlastEm, not yet checked against a console):
-
-| Table | Game speed | Heaviest step (of a frame's 128,005 cycles) |
-|---|---|---|
-| Toxic Caves | 81% | 194% |
-| Lava Powerhouse | 73% | 278% |
-| The Machine | 65% | 268% |
-| Showdown | 73% | 280% |
+- [ ] The game in a window on Windows (SDL), built from the decompiled C
 
 ## Getting started
 
@@ -129,7 +115,7 @@ tools/                 the game's tools: its profile, its cartridge's module, th
                        subject) and the assets' extractor
 tools/core/            arcade-decomp (submodule): the decompiler, the 68000's frontend and analysis
 tools/console/         console-decomp (submodule): the Mega Drive in C and mdref
-docs/                  research.md (what is known of the game), plan.md, performance.md, techniques.md (the
+docs/                  research.md (what is known of the game), plan.md, techniques.md (the
                        ways of working that found the formats)
 rom/                   your cartridge (not in the repository)
 external/              other people's disassemblies, for reference (not in the repository)

@@ -110,16 +110,6 @@ also exists.
 - Options at 0xFF035E: players (1–4), SPEED (normal/fast: changes the force of collisions, 0xFFF8D8 = 0x0E or
   0x13, not the simulation speed), music, flipper buttons.
 
-## Known work on the frame rate
-
-- An overclocked Mega Drive makes the game "transform" (forum, 2024).
-- Eggplant891 (2024–2026): with the object and sprite pools cut from 256 to 16–64 entries, The Machine almost
-  holds 60 fps; with rings and scenery removed too, Toxic Caves runs at 60 "crude and unstable, not a true
-  code optimisation". With a few real optimisations (skipping unused sprites and objects) there is "a
-  noticeable uplift", but it still drops with many objects on screen. The remaining losses are attributed to
-  collision with triggers and tiles. Profiled with md-profiler on his disassembly with symbols.
-- So nobody has a version at 60 fps that keeps all the game.
-
 ## Existing work we can learn from
 
 | What | Where | License |
