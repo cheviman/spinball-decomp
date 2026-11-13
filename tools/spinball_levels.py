@@ -21,7 +21,35 @@ for plane A, BFC10 and BFC30 for plane B, by the table: 0D4FC0-0D5056):
 The text forms (tools/extract_assets.py): a map is a CSV of its rows, each brush's number followed by h and v when
 mirrored; brushes are a line each, "N:" then its 16 cells, a row of four after the other with "|" between, each
 cell as PALETTE:TILE then h, v (mirrored) and ! (in front).
+
+A table's collision (the table BFC40 by the level, kept in FFF1F4; read by 0DC3DE, 0DCB.., 0E1D10 and the tests
+0DB900, 0DBC60):
+  sectors  128x128 pixels each, 16 a row (0DC408 "lsl.l #4": a row is 16 whatever the table's width), as many
+           rows as the table's height takes: a word each, the place of its list in words from the collision's
+           start (0DC40E-0DC43A). Every sector has its own list, and they follow each other in the sectors'
+           order, so the words are what the lists' sizes give.
+  a list   a word, how many, then that many records of 12 bytes (0DC60E-0DC61A):
+             +0 x0, +2 y0, +4 x1, +6 y1   a segment (0DC512-0DC58E: its box against the object's; 0DB900 the test)
+                                          or, with bit 15 of the flags, a circle: x, y, its radius at +4 (0DBC60:
+                                          the distance less the radius); +6 kept as it is (mostly 0)
+             +8 flags                     bit 15 a circle; bits 9-14 what touching it does (0DC66A-0DC69A: 400 a
+                                          game object's, the one +A numbers, from FF784C; 4000, 800, 1000 others;
+                                          200 sets FF3FFC's byte +A, 0DC5CE; 2000 calls 0E1BBE with +A, 0DC4C2);
+                                          bits 0-3 one way only, against the object's speed (0DC4EE-0DC502); bit 7
+                                          preferred (0DCD1A-0DCD30)
+             +A a number                  the game object or the flag the record is for
+The text form: per sector "sector X,Y" and a line a record, "X0 Y0 X1 Y1 FLAGS NUMBER" (the flags in hex).
+
+The flippers (0DDE6C-0DDF58 sets them up, 0DE2xx-0DE6xx their collision):
+  a table's  C08BE by the level (0DDEE0), as many as C08EE says (0DDEC8: FF58C4), 10 bytes each, copied to FF74E8
+             on: a long the game fills with its animated object (0 in the cartridge), x, y, and flags its
+             animated object takes (4000: mirrored), made from the definition C08CE gives by the level (0DDF18)
+  shapes     a list of records as a sector's, by the flipper's position (its animated object's byte 2F, 0-3): the
+             table C0A86 for one side, C0A96 for the other (0DE53C, 0DE530); each, two circles and two segments
+  boxes      10 bytes by the position, from C0A9C (0DE336: x0, y0, x1, y1 and a word): the first position's
+             would fall on the end of the table C0A96, so the boxes are the three after it (C0AA6-C0AC3)
 """
+import math
 import struct
 
 MAP_WIDTHS = 0x0D8D04           # the tables' widths in brushes, a word each (0D8D34, 0D8E2A "lea ($d8d04,PC), A2")
@@ -148,3 +176,132 @@ def plane_pens(rows, brushes, tiles):
                     line.reverse()
                 picture[8 * y + row][8 * x:8 * x + 8] = line
     return picture
+
+
+# ---- the collision ----
+
+SECTOR = 128                    # pixels a side
+SECTORS_ACROSS = 16             # a row of sectors, whatever the table's width
+RECORD_BYTES = 12
+CIRCLE = 0x8000
+
+
+def read_list(image, address):
+    """A list of records: ([(x0, y0, x1, y1, flags, number)], its size in bytes)"""
+    count = struct.unpack_from(">H", image, address)[0]
+    records = [struct.unpack_from(">hhhhHH", image, address + 2 + RECORD_BYTES * index) for index in range(count)]
+    return records, 2 + RECORD_BYTES * count
+
+
+def list_bytes(records):
+    return struct.pack(">H", len(records)) + b"".join(struct.pack(">hhhhHH", *record) for record in records)
+
+
+def read_collision(image, address, rows):
+    """The sectors' lists, [[(x0, y0, x1, y1, flags, number)]] in the sectors' order, and the size in bytes;
+    ValueError when the words do not give the lists one after the other"""
+    count = SECTORS_ACROSS * rows
+    places = struct.unpack_from(f">{count}H", image, address)
+    lists, expected = [], count
+    for sector, place in enumerate(places):
+        if place != expected:
+            raise ValueError(f"sector {sector}: its list at word {place:X}, not at {expected:X}")
+        records, size = read_list(image, address + 2 * place)
+        lists.append(records)
+        expected += size // 2
+    return lists, 2 * expected
+
+
+def collision_bytes(lists):
+    places, body, place = [], bytearray(), len(lists)
+    for records in lists:
+        places.append(place)
+        body += list_bytes(records)
+        place += 1 + len(records) * RECORD_BYTES // 2
+    return struct.pack(f">{len(places)}H", *places) + bytes(body)
+
+
+def records_text(records):
+    return [f"  {x0} {y0} {x1} {y1} {flags:04X} {number}" for x0, y0, x1, y1, flags, number in records]
+
+
+def parse_record(words):
+    x0, y0, x1, y1 = (int(value) for value in words[:4])
+    return x0, y0, x1, y1, int(words[4], 16), int(words[5])
+
+
+def collision_text(lists):
+    lines = []
+    for sector, records in enumerate(lists):
+        lines.append(f"sector {sector % SECTORS_ACROSS},{sector // SECTORS_ACROSS}")
+        lines += records_text(records)
+    return "\n".join(lines) + "\n"
+
+
+def parse_collision_text(text):
+    lists = []
+    for line in text.splitlines():
+        words = line.split("#", 1)[0].split()
+        if not words:
+            continue
+        if words[0] == "sector":
+            x, y = (int(value) for value in words[1].split(","))
+            if y * SECTORS_ACROSS + x != len(lists):
+                raise ValueError(f"sector {words[1]} out of order")
+            lists.append([])
+            continue
+        lists[-1].append(parse_record(words))
+    return lists
+
+
+def collision_pens(lists, width, height):
+    """A picture of the collision, rows of pens: segments and circles, 15 the ones that only stop the ball, 10
+    the ones that do something when touched (bits 9-14), 12 the one-way ones (bits 0-3)"""
+    picture = [[0] * width for _ in range(height)]
+
+    def plot(x, y, pen):
+        if 0 <= x < width and 0 <= y < height:
+            picture[y][x] = pen
+
+    for records in lists:
+        for x0, y0, x1, y1, flags, _ in records:
+            pen = 10 if flags & 0x7E00 else 12 if flags & 0x000F else 15
+            if flags & CIRCLE:
+                radius = max(1, x1)
+                for step in range(8 * radius):
+                    angle = 2 * math.pi * step / (8 * radius)
+                    plot(round(x0 + radius * math.cos(angle)), round(y0 + radius * math.sin(angle)), pen)
+                continue
+            steps = max(abs(x1 - x0), abs(y1 - y0), 1)
+            for step in range(steps + 1):
+                plot(x0 + round((x1 - x0) * step / steps), y0 + round((y1 - y0) * step / steps), pen)
+    return picture
+
+
+# ---- the flippers ----
+
+FLIPPER_BYTES = 10              # a long the game fills (0 in the cartridge), x, y, flags
+FLIPPER_BOX_BYTES = 10          # x0, y0, x1, y1 and a word
+
+
+def read_flippers(image, address, count):
+    """[(x, y, flags)] of a table's flippers; ValueError if a long the game fills is not 0"""
+    flippers = []
+    for index in range(count):
+        filled, x, y, flags = struct.unpack_from(">IhhH", image, address + FLIPPER_BYTES * index)
+        if filled:
+            raise ValueError(f"flipper {index} at {address + FLIPPER_BYTES * index:06X} has {filled:08X} in its long")
+        flippers.append((x, y, flags))
+    return flippers
+
+
+def flippers_bytes(flippers):
+    return b"".join(struct.pack(">IhhH", 0, x, y, flags) for x, y, flags in flippers)
+
+
+def read_box(image, address):
+    return struct.unpack_from(">hhhhh", image, address)
+
+
+def box_bytes(box):
+    return struct.pack(">hhhhh", *box)

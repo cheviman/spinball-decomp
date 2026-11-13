@@ -74,7 +74,19 @@ have, and the animations' bytes other code reads)
                  map up to the next place the code names (its texts at BE248: 7 rows). Its brushes are as many as
                  the highest it uses. The drawers draw a cell more than the screen: they read the row after a
                  map's last, and the brushes its words would name. The table BFC40 by the level, kept in FFF1F4,
-                 holds the collision (to describe); the tables of values LEVEL_VALUES are read by the level too.
+                 holds the collision; the tables of values LEVEL_VALUES are read by the level too.
+  collision      what the code keeps in FFF1F4 (tools/spinball_levels.py): an entry of a table by the level
+                 (BFC40, 0D4020-0D402A), a word a sector of 128x128 pixels (16 a row, as many rows as the table's
+                 height in LEVEL_SIZES takes) that places its list, then the lists: they must follow each other in
+                 the sectors' order, from the end of the words.
+  flippers       the flippers' code names their tables (FLIPPERS and the next): each table's flippers by the
+                 level, as many as FLIPPER_COUNTS says; their collision's shapes, lists like a sector's, by the
+                 flipper's position (as many as the table holds before the next one), one table a side; and their
+                 boxes by the position, those after the first (whose place the shapes' second table takes).
+  values         a table the code reads by the level: "move.w FF75B0.l, Dn", "add.w Dn, Dn" or "lsl.w #2, Dn"
+                 or nothing, "movea.l #TABLE, An", and "(An,Dn.w)" read right after (or where a "bra" goes):
+                 four entries as far apart as the scale says, each as big as the read (the collision's what
+                 touching does at C06BA-C0705, the tables' sizes, and others).
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -117,13 +129,20 @@ READERS = {                         # the code that reads what the walk has (for
     "C2 decoder": (0x0F5A7A, 0x0F5B9E),
     "plane drawers": (0x0D8D0E, 0x0D8F22),
 }
+READER_FUNCTIONS = {                # the same, as the functions that make it up
+    "collision code": (0x0DB900, 0x0DBC60, 0x0DBD1E, 0x0DC3DE, 0x0DCBB0, 0x0DCDFE, 0x0DCFC0, 0x0DE08E, 0x0E1D10),
+}
 C2_READ_PAST = 2                    # the C2 decoder reads a code as the three bytes from its first: past the end
 LEVEL_POINTERS = {                  # where the code keeps an entry of a table by the level, and what it is
     0xFF3CAC: "map",                # read by the plane drawers 0D8D0E, 0D8E12
     0xFF58CC: "brushes",            # the same
-    0xFFF1F4: "collision",          # read by 0DC3DE, 0E1D10 (to describe)
+    0xFFF1F4: "collision",          # read by 0DC3DE, 0DCB78, 0E1D10 and the tests 0DB900, 0DBC60
 }
 LEVEL_SIZES = 0x0BFC70              # the tables' width and height in pixels, two words each (0D4036)
+FLIPPERS = 0x0C08BE                 # by the level: the table's flippers (0DDEE0), 10 bytes each (0DDEF0)
+FLIPPER_COUNTS = 0x0C08EE           # by the level: how many (0DDEC8, FF58C4), a word each
+FLIPPER_SHAPES = (0x0C0A86, 0x0C0A96)   # by the flipper's position, a side each (0DE53C, 0DE530)
+FLIPPER_BOXES = 0x0C0A9C            # by the position, 10 bytes each (0DE336)
 LEVEL_VALUES = {                    # the tables' values the level-loading code (0D3FAC) reads by the level: bytes each
     0x0BFC50: (8, "palettes by level"),     # the palette of each of the four lines (0D41A8, through 0D8674)
     LEVEL_SIZES: (4, "sizes by level"),     # width and height (0D4036: the camera's limits, less 140 and E0)
@@ -197,6 +216,11 @@ class Walk:
         self.widths_read = 0            # the entries of MAP_WIDTHS the walked maps take
         self.maps = {}                  # {address: (width, rows, how it was found)}
         self.brushes = {}               # {address: (count, how it was found)}
+        self.collisions = {}            # {address: (rows of sectors, size in bytes, how it was found)}
+        self.flippers = {}              # {address: (count, level)}
+        self.value_tables_by_level = {}     # {address: (stride, size of an entry, how it was found)}
+        self.flipper_shapes = {}        # {address: (size in bytes, how it was found)}
+        self.flipper_boxes = (0, 0)     # (first, count) of the boxes walked
         self.tilesets = {}              # {address: (kind, size in bytes, how it was found)}
         self.tileset_tables = {}        # {address: how it was found}: tables of four tilesets, a level each
         self.ordered = []               # [(address, Instruction)] of the analysis, in address order
@@ -219,6 +243,7 @@ class Walk:
             if instruction.flow == "call" and instruction.target in TILE_LOADERS:
                 self.tileset_load(position, address, instruction.target)
             self.level_pointer_store(position, address, instruction)
+            self.level_value_load(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
@@ -233,6 +258,8 @@ class Walk:
         for instruction in self.analysis.instructions.values():
             self.anchors.update(place for place in data_places(instruction) if place < len(self.image))
         self.walk_planes()
+        self.walk_collisions()
+        self.walk_flippers()
         self.walk_definitions()
         biggest = max(len(sprites) for _, sprites, _, _ in self.sprite_tables.values())
         for table, found in lists:
@@ -384,6 +411,41 @@ class Walk:
         self.pointer_tables.setdefault(table, (kind, f"kept in {operands[1].value & 0xFFFFFF:06X} at {address:06X}"))
         self.kept.append((kind, None, table, address))
 
+    def level_value_load(self, position, address, instruction):
+        """A table of values by the level: "move.w FF75B0.l, Dn", then "add.w Dn, Dn" (an entry every 2 bytes),
+        "lsl.w #2, Dn" (every 4) or nothing (every byte), "movea.l #TABLE, An", and the read of "(An,Dn.w)" right
+        after it or where the "bra" after it goes: its size is the entry's"""
+        operands = instruction.operands
+        if instruction.mnemonic != "movea" or operands[0].mode != "immediate" or position < 2:
+            return
+        register, stride, at = operands[1].reg, 1, position - 1
+        scale = self.ordered[at][1]
+        if scale.mnemonic == "add" and len(scale.operands) == 2 and scale.operands[0].mode == "dreg" \
+                and scale.operands[0].reg == scale.operands[1].reg:
+            stride, at = 2, at - 1
+        elif scale.mnemonic == "lsl" and scale.operands[0].mode in ("quick", "immediate") \
+                and scale.operands[0].value == 2:
+            stride, at = 4, at - 1
+        load = self.ordered[at][1]
+        if load.mnemonic != "move" or load.size != "w" or load.operands[0].mode != "abs_long" \
+                or load.operands[0].value & 0xFFFFFF != LEVEL_VARIABLE or load.operands[1].mode != "dreg":
+            return
+        index = load.operands[1].reg
+        if stride > 1 and scale.operands[-1].reg != index:
+            return
+        reader = self.ordered[position + 1][1]
+        if reader.mnemonic == "bra":
+            reader = self.analysis.instructions.get(reader.target)
+        if reader is None:
+            return
+        for operand in reader.operands:
+            if operand.mode == "index" and operand.reg == register and operand.index == index:
+                size = {"b": 1, "w": 2, "l": 4}[reader.size]
+                if size <= stride:
+                    table = operands[0].value & 0xFFFFFF
+                    self.value_tables_by_level.setdefault(table, (stride, size, f"read at {reader.address:06X}"))
+                return
+
     def pair_planes(self):
         """The maps and their brushes from what the code keeps: each brushes after the map kept just before it"""
         last_map = None
@@ -463,6 +525,47 @@ class Walk:
                              f"{self.next_handed(brushes_at):06X}")
         self.brushes[brushes_at] = (count, f"{brushes_found}, for the map {where:06X}")
         self.plane_places.append((where, brushes_at))
+
+    def walk_collisions(self):
+        """Each table's collision, from the tables by the level the code keeps in FFF1F4"""
+        for table, (kind, _) in self.pointer_tables.items():
+            if kind != "collision":
+                continue
+            for level in range(LEVELS):
+                where = long_at(self.image, table + 4 * level)
+                height = struct.unpack_from(">H", self.image, LEVEL_SIZES + 4 * level + 2)[0]
+                rows = (height + levels.SECTOR - 1) // levels.SECTOR
+                try:
+                    _, size = levels.read_collision(self.image, where, rows)
+                except ValueError as problem:
+                    raise SystemExit(f"the collision at {where:06X} (entry {level} of {table:06X}): {problem}")
+                if where + size > self.next_handed(where):
+                    raise SystemExit(f"the collision at {where:06X} runs into {self.next_handed(where):06X}")
+                self.collisions[where] = (rows, size, f"entry {level} of {table:06X}")
+
+    def walk_flippers(self):
+        """The flippers' tables by the level, their shapes by the position, and the boxes: FLIPPERS and the other
+        tables the flippers' code names (each must be named by an instruction)"""
+        for table in (FLIPPERS, FLIPPER_COUNTS, FLIPPER_BOXES) + FLIPPER_SHAPES:
+            if table not in self.anchors:
+                raise SystemExit(f"{table:06X}: no instruction names it")
+        for level in range(LEVELS):
+            where = long_at(self.image, FLIPPERS + 4 * level)
+            count = struct.unpack_from(">H", self.image, FLIPPER_COUNTS + 2 * level)[0]
+            try:
+                levels.read_flippers(self.image, where, count)
+            except ValueError as problem:
+                raise SystemExit(str(problem))
+            self.flippers[where] = (count, level)
+        positions = (FLIPPER_SHAPES[1] - FLIPPER_SHAPES[0]) // 4
+        for side, table in enumerate(FLIPPER_SHAPES):
+            for position in range(positions):
+                where = long_at(self.image, table + 4 * position)
+                _, size = levels.read_list(self.image, where)
+                self.flipper_shapes[where] = (size, f"position {position} of {table:06X}")
+        first = next(position for position in range(positions)
+                     if FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * position >= FLIPPER_SHAPES[1] + 4 * positions)
+        self.flipper_boxes = (first, positions - first)
 
     def past_maps(self):
         """The bytes the drawers read past the maps: the row after each map's last (they draw a cell more than
@@ -715,6 +818,23 @@ class Walk:
             found[table] = (table + 4 * LEVELS, f"{kind} by level")
         for address, (width, rows, _) in self.maps.items():
             found[address] = (address + 2 * width * rows, "map")
+        for address, (_, size, _) in self.collisions.items():
+            found[address] = (address + size, "collision")
+        if self.flippers:
+            found[FLIPPERS] = (FLIPPERS + 4 * LEVELS, "flippers by level")
+            found[FLIPPER_COUNTS] = (FLIPPER_COUNTS + 2 * LEVELS, "flipper counts by level")
+            for table in FLIPPER_SHAPES:
+                found[table] = (table + FLIPPER_SHAPES[1] - FLIPPER_SHAPES[0], "flipper shapes by position")
+            first, count = self.flipper_boxes
+            boxes = FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * first
+            found[boxes] = (boxes + levels.FLIPPER_BOX_BYTES * count, "flipper boxes")
+        for table, (stride, size, _) in self.value_tables_by_level.items():
+            for level in range(LEVELS):
+                found.setdefault(table + stride * level, (table + stride * level + size, "values by level"))
+        for address, (count, _) in self.flippers.items():
+            found[address] = (address + levels.FLIPPER_BYTES * count, "flippers")
+        for address, (size, _) in self.flipper_shapes.items():
+            found[address] = (address + size, "flipper shape")
         for address, (count, _) in self.brushes.items():
             found[address] = (address + levels.BRUSH_BYTES * count, "brushes")
         if self.widths_read:
@@ -771,10 +891,12 @@ def check_reads(walk, folder):
             pc, span = line.split()
             first, last = (int(value, 16) for value in span.split("-"))
             pc = int(pc, 16)
-            reader = next((name for name, (start, stop) in READERS.items() if start <= pc < stop), None)
+            reader = next((name for name, (start, stop) in READERS.items() if start <= pc < stop), None) \
+                or next((name for name, functions in READER_FUNCTIONS.items() if walk.function_of(pc) in functions),
+                        None)
             for address in range(first, last + 1):
                 (by_reader[reader] if reader else others)[address].add(pc)
-    for reader in READERS:
+    for reader in list(READERS) + list(READER_FUNCTIONS):
         read = by_reader[reader]
         missing = sorted(set(read) - walked)
         runs = []
@@ -813,6 +935,8 @@ def main():
         print(f"{kind} by level {table:06X} ({found})")
     for address, (width, rows, found) in sorted(walk.maps.items()):
         print(f"map {address:06X}-{address + 2 * width * rows - 1:06X} {width}x{rows} ({found})")
+    for address, (rows, size, found) in sorted(walk.collisions.items()):
+        print(f"collision {address:06X}-{address + size - 1:06X} {levels.SECTORS_ACROSS}x{rows} sectors ({found})")
     for address, (count, found) in sorted(walk.brushes.items()):
         print(f"brushes {address:06X}-{address + levels.BRUSH_BYTES * count - 1:06X} {count} ({found})")
     for address, (kind, size, found) in sorted(walk.tilesets.items()):

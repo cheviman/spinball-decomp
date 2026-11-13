@@ -175,7 +175,19 @@ def write_levels(analysis, names, folder):
         (folder / f"{name}_brushes.txt").write_text(levels.brushes_text(levels.read_brushes(image, where, count)),
                                                     encoding="ascii")
         lines.append(f"brushes {name} at {where:06X} count {count}")
+    for where, (rows, _, _) in sorted(walk.collisions.items()):
+        name = names.get(where, f"collision_{where:06X}").removesuffix("_collision")
+        lists, _ = levels.read_collision(image, where, rows)
+        (folder / f"{name}_collision.txt").write_text(levels.collision_text(lists), encoding="ascii")
+        lines.append(f"collision {name} at {where:06X} rows {rows}")
+        table = next(table for table, (kind, _) in walk.pointer_tables.items() if kind == "collision")
+        level = next(level for level in range(data_walk.LEVELS) if data_walk.long_at(image, table + 4 * level) == where)
+        width, height = (struct.unpack_from(">H", image, data_walk.LEVEL_SIZES + 4 * level + offset)[0]
+                         for offset in (0, 2))
+        asset_formats.write_png_indexed(folder / f"{name}_collision.png", levels.collision_pens(lists, width, height),
+                                        GREYS, 4)
     (folder / "levels.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
+    write_flippers(image, names, walk, folder)
     # the pictures: a table's planes drawn with its tiles (the first plane the code draws with the first tiles
     # the table loads, the second with the second: 0D3FF4, 0D401A; 0D4FC0, 0D5014)
     tables = [table for table, (kind, _) in walk.pointer_tables.items() if kind == "map"]
@@ -194,6 +206,49 @@ def write_levels(analysis, names, folder):
     print(f"levels: {len(walk.maps)} maps, {len(walk.brushes)} brushes, {pictures} pictures -> {folder}")
 
 
+def write_flippers(image, names, walk, folder):
+    """flippers.txt: each table's flippers ("X Y FLAGS"), the shapes ("X0 Y0 X1 Y1 FLAGS NUMBER", as the
+    collision's) and the boxes ("X0 Y0 X1 Y1 WORD"), each section with where it goes"""
+    lines = ["# The flippers: each section says where its bytes go (for --check); tools/spinball_levels.py"]
+    for where, (count, level) in sorted(walk.flippers.items()):
+        name = names.get(where, f"flippers_{where:06X}").removesuffix("_flippers")
+        lines.append(f"flippers {name} at {where:06X}")
+        lines += [f"  {x} {y} {flags:04X}" for x, y, flags in levels.read_flippers(image, where, count)]
+    for where, (_, found) in sorted(walk.flipper_shapes.items()):
+        lines.append(f"shape at {where:06X}  # {found}")
+        lines += levels.records_text(levels.read_list(image, where)[0])
+    first, count = walk.flipper_boxes
+    start = data_walk.FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * first
+    lines.append(f"boxes at {start:06X}  # the positions {first}-{first + count - 1}")
+    lines += ["  " + " ".join(str(value) for value in levels.read_box(image, start + levels.FLIPPER_BOX_BYTES * index))
+              for index in range(count)]
+    (folder / "flippers.txt").write_text("\n".join(lines) + "\n", encoding="ascii")
+
+
+def check_flippers(image, folder):
+    problems, sections = 0, []
+    for line in (folder / "flippers.txt").read_text(encoding="ascii").splitlines():
+        words = line.split("#", 1)[0].split()
+        if not words:
+            continue
+        if words[0] in ("flippers", "shape", "boxes"):
+            sections.append((words[0], int(words[words.index("at") + 1], 16), []))
+        else:
+            sections[-1][2].append(words)
+    for kind, address, rows in sections:
+        if kind == "flippers":
+            built = levels.flippers_bytes([(int(x), int(y), int(flags, 16)) for x, y, flags in rows])
+        elif kind == "shape":
+            built = levels.list_bytes([levels.parse_record(words) for words in rows])
+        else:
+            built = b"".join(levels.box_bytes(tuple(int(value) for value in words)) for words in rows)
+        if built != image[address:address + len(built)]:
+            print(f"{kind} at {address:06X}: differs from the cartridge's {len(built)} bytes")
+            problems += 1
+    print(f"flippers: {len(sections)} sections, " + ("identical" if not problems else f"{problems} differ"))
+    return problems
+
+
 def check_levels(image, folder):
     problems = 0
     for line in (folder / "levels.txt").read_text(encoding="ascii").splitlines():
@@ -203,6 +258,9 @@ def check_levels(image, folder):
         kind, name, address = words[0], words[1], int(words[3], 16)
         if kind == "map":
             built = levels.map_bytes(levels.parse_map_text((folder / f"{name}_map.csv").read_text(encoding="ascii")))
+        elif kind == "collision":
+            built = levels.collision_bytes(levels.parse_collision_text(
+                (folder / f"{name}_collision.txt").read_text(encoding="ascii")))
         else:
             built = levels.brushes_bytes(levels.parse_brushes_text(
                 (folder / f"{name}_brushes.txt").read_text(encoding="ascii")))
@@ -220,7 +278,7 @@ def main():
     out = Path(sys.argv[out_at + 1]) if out_at is not None else game_profile.ROOT / "assets"
     if "--check" in sys.argv:
         problems = check_sprites(image, out / "sprites") + check_tilesets(image, out / "tilesets") \
-            + check_levels(image, out / "levels")
+            + check_levels(image, out / "levels") + check_flippers(image, out / "levels")
         print("all identical" if not problems else f"{problems} differ")
         return 1 if problems else 0
     write_sprites(analysis, names, out / "sprites")

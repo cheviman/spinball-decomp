@@ -84,6 +84,15 @@ also exists.
   has 48 rows: its collision begins right after. The drawers draw a cell more than the screen shows, and read
   the row after each map. The options screen's brushes begin on the last two bytes of its SSC tiles: the end's
   second byte, 01, is the first brush's first cell (tile 1), which is why that one SSC end is not 00 00.
+- **The collision** (`tools/spinball_levels.py`): each table's, from BFC40 by the level (FFF1F4), is 16x16
+  sectors of 128x128 pixels, a word each placing its list (in the sectors' order), and the lists: a count, then
+  records of 12 bytes, a segment (x0, y0, x1, y1) or, with bit 15 of the flags, a circle (x, y, radius), the flags
+  (bits 9-14 what touching it does: a game object's, a flag at FF3FFC, a call of 0E1BBE...; bits 0-3 one way
+  only; bit 7 preferred) and the number of the object or flag. The community's "collision tiles" of 128x128 are
+  these sectors. The flippers' collision is a list of the same kind by their position (2 circles, 2 segments),
+  one table a side (C0A86, C0A96 for the mirrored); their places come by the table from C08BE.
+- The code at 0D91FC reads the flags (+8) of a record through a pointer that can be 0: it reads the cartridge's
+  bytes 000008-000009 (the C has to read them the same way).
 - Compression: **SSC** (an LZSS) for the tables' tiles, the HUD's and the options'; **C2** (an LZW of 9 to
   11-bit codes, not 12: the decoder at 0F5A7A stops widening at 11; its masks' table at 09BCD2 has a fourth word,
   FFF, it never reads) for the cutscenes, the main menu and the bonus stages. Both are read from the game's

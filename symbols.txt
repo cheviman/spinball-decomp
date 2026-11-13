@@ -133,6 +133,23 @@
 # first brush's first cell, tile 1, is the end's second byte)
 0BE1BC  data  options_map
 0BDFBC  data  options_brushes
+# the tables' collision (tools/spinball_levels.py; assets/levels): 16x16 sectors of 128x128 pixels, a list each of
+# segments and circles, from the table BFC40 by the level (FFF1F4)
+04C6A0  data  toxic_caves_collision
+05FEEA  data  showdown_collision
+07946A  data  lava_powerhouse_collision
+094756  data  the_machine_collision
+# the flippers: a table's (C08BE by the level, as many as C08EE says), their collision's shapes by their position
+# (C0A86, and C0A96 for the mirrored ones: flags 4000) and boxes by the position after the first (C0A9C)
+0C0706  data  toxic_caves_flippers
+0C076A  data  lava_powerhouse_flippers
+0C07CE  data  the_machine_flippers
+0C081E  data  showdown_flippers
+0C08BE  data  level_flippers
+0C08EE  data  level_flipper_counts
+0C0A86  data  flipper_shapes
+0C0A96  data  flipper_shapes_mirrored
+0C0A9C  data  flipper_boxes
 # the tables by the level, a long each: the tiles (0D3FEA, 0D4010), the maps and brushes (0D4FC4-0D502C), the
 # collision's sectors (0D4024: FFF1F4, which 0DC3DE and 0E1D10 read; to describe)
 0BFBE0  data  level_tiles
