@@ -24,7 +24,7 @@ As of 2026-11-15:
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
       calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 17,399 addresses the four scenarios
       execute is found; the 27 functions reached only through data are in `symbols.txt` with how they were found
-- [x] The cartridge's bytes classified: 16.7% code, 81.0% described data, 0.4% unknown; the rest is data the
+- [x] The cartridge's bytes classified: 16.7% code, 81.3% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats
 - [x] The uncompressed sprites: their format read from the code (`0D7D02`-`0D7FB0`), the six tables walked
       from where the code hands them over (`tools/data_walk.py`), and the 457 sprites extracted as one sheet

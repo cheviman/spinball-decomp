@@ -4,7 +4,7 @@ Description: Sonic the Hedgehog Spinball's data the code hands to its engines, w
              over, and checked against what the reference reads
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    15-11-2026
+Modified:    16-11-2026
 Author:      Sebastian Toyos
 
 Usage: python tools/data_walk.py [cartridge] [--reads FOLDER]
@@ -22,6 +22,7 @@ reads it; what it reads names more places. By subject:
   tools/walk_texts.py        the texts the functions that read them get
   tools/walk_screens.py      the front end's screens (maps, palettes, sprites) and the Z80's program
   tools/walk_sequences.py    the front end's scripts, a command at a time
+  tools/walk_states.py       the chains of states 0F789A sets the objects to
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -40,10 +41,11 @@ from walk_levels import LevelsWalk  # noqa: E402
 from walk_patterns import LEVELS, CodePatterns, long_at  # noqa: E402
 from walk_screens import ScreensWalk  # noqa: E402
 from walk_sequences import SequencesWalk  # noqa: E402
+from walk_states import StatesWalk  # noqa: E402
 from walk_texts import TextsWalk  # noqa: E402
 
 class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, ScreensWalk,
-           SequencesWalk):
+           SequencesWalk, StatesWalk):
     """The walk: what each subject finds, from the code and from what it finds"""
 
     def __init__(self, analysis):
@@ -57,6 +59,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.init_texts()
         self.init_screens()
         self.init_sequences()
+        self.init_states()
 
     def run(self):
         self.index_code()
@@ -100,7 +103,8 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.walk_screens()
         self.walk_gems()
         self.walk_sequences()
-        self.handed |= self.screen_places() | self.sequence_places()
+        self.walk_states()
+        self.handed |= self.screen_places() | self.sequence_places() | self.state_places()
         self.walk_screen_sprite_tables()
         self.walk_definitions()
         biggest = max(len(sprites) for _, sprites, _, _ in self.sprite_tables.values())
@@ -126,6 +130,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.spans_texts(found)
         self.spans_screens(found)
         self.spans_sequences(found)
+        self.spans_states(found)
         self.spans_pointed(found)
         return found
 
