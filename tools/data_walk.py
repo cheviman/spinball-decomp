@@ -4,7 +4,7 @@ Description: Sonic the Hedgehog Spinball's data the code hands to its engines, w
              over, and checked against what the reference reads
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    15-11-2026
 Author:      Sebastian Toyos
 
 Usage: python tools/data_walk.py [cartridge] [--reads FOLDER]
@@ -20,6 +20,8 @@ reads it; what it reads names more places. By subject:
   tools/walk_graphics.py     the tiles the loaders get, the palettes, the colour cycles
   tools/walk_levels.py       the planes' maps and brushes, the collision, the flippers, the tables' values
   tools/walk_texts.py        the texts the functions that read them get
+  tools/walk_screens.py      the front end's screens (maps, palettes, sprites) and the Z80's program
+  tools/walk_sequences.py    the front end's scripts, a command at a time
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -36,9 +38,12 @@ from walk_animations import AnimationWalk  # noqa: E402
 from walk_graphics import TILE_LOADERS, GraphicsWalk  # noqa: E402
 from walk_levels import LevelsWalk  # noqa: E402
 from walk_patterns import LEVELS, CodePatterns, long_at  # noqa: E402
+from walk_screens import ScreensWalk  # noqa: E402
+from walk_sequences import SequencesWalk  # noqa: E402
 from walk_texts import TextsWalk  # noqa: E402
 
-class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
+class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, ScreensWalk,
+           SequencesWalk):
     """The walk: what each subject finds, from the code and from what it finds"""
 
     def __init__(self, analysis):
@@ -50,11 +55,15 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
         self.init_graphics()
         self.init_levels()
         self.init_texts()
+        self.init_screens()
+        self.init_sequences()
 
     def run(self):
         self.index_code()
         instructions = self.ordered
         self.find_makers()
+        self.interpolated_tables()
+        self.parallel_tables()
         lists = []
         for position, (address, instruction) in enumerate(instructions):
             if instruction.flow == "call" and instruction.target in self.makers:
@@ -66,6 +75,9 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
             self.block_copy(position, address, instruction)
             self.pointer_loop(position, address, instruction)
             self.sequence_counter(position, address, instruction)
+            self.masked_index(position, address, instruction)
+            self.counted_loop(position, address, instruction)
+            self.pointed_record(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
@@ -83,7 +95,13 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
         self.walk_planes()
         self.walk_collisions()
         self.walk_flippers()
+        self.walk_zones()
         self.walk_texts()
+        self.walk_screens()
+        self.walk_gems()
+        self.walk_sequences()
+        self.handed |= self.screen_places() | self.sequence_places()
+        self.walk_screen_sprite_tables()
         self.walk_definitions()
         biggest = max(len(sprites) for _, sprites, _, _ in self.sprite_tables.values())
         for table, found in lists:
@@ -106,6 +124,9 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk):
         self.spans_level_records(found)
         self.spans_c2_masks(found)
         self.spans_texts(found)
+        self.spans_screens(found)
+        self.spans_sequences(found)
+        self.spans_pointed(found)
         return found
 
 
@@ -190,6 +211,12 @@ def main():
     print("functions the animations call: " + " ".join(f"{function:06X} (step {step:06X})"
                                                          for function, step in sorted(walk.functions.items())))
     unknown = sorted(function for function in walk.functions if function not in analysis.instructions)
+    if unknown:
+        print("  ... that the analysis does not know (for symbols.txt): "
+              + " ".join(f"{function:06X}" for function in unknown))
+    print(f"scripts: {len(walk.scripts)}, sprite groups: {len(walk.sprite_groups)}; the functions they call: "
+          + " ".join(f"{function:06X}" for function in sorted(walk.script_calls)))
+    unknown = sorted(function for function in walk.script_calls if function not in analysis.instructions)
     if unknown:
         print("  ... that the analysis does not know (for symbols.txt): "
               + " ".join(f"{function:06X}" for function in unknown))

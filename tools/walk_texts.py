@@ -4,7 +4,7 @@ Description: Sonic the Hedgehog Spinball's texts, walked from the code that hand
              them (for tools/data_walk.py)
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    15-11-2026
 Author:      Sebastian Toyos
 
   readers        a function reads one of its arguments as a text when its prologue loads it into An and the
@@ -23,7 +23,15 @@ Author:      Sebastian Toyos
                  that come in among the pushes): bytes up to a 0, which ends them; one that ends on an odd address
                  is followed by FF, so the next starts on a word. (Texts the code copies whole into a local array,
                  "RINGS BONUS" at 0D4AAC, are walk_patterns' copied blocks.)
+  big font       the messages' characters drawn in tiles (0DE8EC, 0DED78 and the others that draw a message): a
+                 character doubled ("add.l Dn, Dn"), "movea.l #OFFSETS, An; move.w (An,Dn.l)" its glyph's offset
+                 in words, then "movea.l #GLYPHS, Am; adda.l" twice that: the glyph, whose rows of tile words the
+                 code reads 8 bytes apart. OFFSETS has a word for each of the 128 characters (07E45A), and GLYPHS
+                 as many glyphs as the largest offset reaches, each as big as the step between the offsets (16
+                 words: 07DE1A, 50 glyphs of four rows of four, the fourth all C000, which the code does not read).
 """
+import math
+import struct
 import sys
 from pathlib import Path
 
@@ -66,6 +74,8 @@ class TextsWalk:
         self.char_widths = {}           # {address: (characters, how it was found)}
         self.text_tables_found = {}     # {address: (entries, how it was found)}
         self.text_indices = {}          # {address: (size, how it was found)}
+        self.glyph_offsets = {}         # {address: (glyphs, how it was found)}: the big font's, by character
+        self.glyphs = {}                # {address: (glyphs, bytes each, how it was found)}
 
     def function_body(self, function):
         """The positions of a function's instructions, up to the next function"""
@@ -127,6 +137,7 @@ class TextsWalk:
     def walk_texts(self):
         self.find_text_readers()
         self.texts_read_in_place()
+        self.big_font()
         for position, (address, instruction) in enumerate(self.ordered):
             target = self.call_target(position) if instruction.flow == "call" else None
             if target not in self.text_readers:
@@ -176,6 +187,43 @@ class TextsWalk:
         if any(byte >= CHARACTERS for address, (size, _) in self.texts.items()
                for byte in self.image[address:address + size]):
             raise SystemExit("a text has a byte past the font's characters")
+
+    def big_font(self):
+        """The messages' font of tiles: "add.l Dn, Dn; movea.l #OFFSETS, An; move.w (An,Dn.l)", then "movea.l
+        #GLYPHS, Am; adda.l" in the function: a word for each character, and the glyphs the words reach"""
+        for position, (address, instruction) in enumerate(self.ordered[1:-1], 1):
+            operands = instruction.operands
+            following, before = self.ordered[position + 1][1], self.ordered[position - 1][1]
+            if instruction.mnemonic != "movea" or operands[0].mode != "immediate" or following.mnemonic != "move" \
+                    or following.size != "w" or following.operands[0].mode != "index" or following.operands[0].disp \
+                    or following.operands[0].reg != operands[1].reg or before.mnemonic != "add" \
+                    or before.operands[0].mode != "dreg" or before.operands[0].reg != following.operands[0].index \
+                    or before.operands[1].reg != before.operands[0].reg:
+                continue
+            offsets = operands[0].value & 0xFFFFFF
+            if offsets + 2 * CHARACTERS > len(self.image):
+                continue
+            function = self.function_of(address)
+            for later in range(position + 2, min(position + 40, len(self.ordered) - 1)):
+                if self.ordered[later][0] in self.analysis.functions:
+                    break
+                load, add = self.ordered[later][1], self.ordered[later + 1][1]
+                if load.mnemonic == "movea" and load.operands[0].mode == "immediate" and add.mnemonic == "adda" \
+                        and add.operands[1].reg == load.operands[1].reg \
+                        and load.operands[0].value & 0xFFFFFF < offsets:
+                    self.add_big_font(offsets, load.operands[0].value & 0xFFFFFF,
+                                      f"read by {function:06X} ({address:06X}, {load.address:06X})")
+                    break
+
+    def add_big_font(self, offsets, glyphs, found):
+        words = [struct.unpack_from(">H", self.image, offsets + 2 * character)[0] for character in range(CHARACTERS)]
+        step = 0
+        for word in words:
+            step = math.gcd(step, word)
+        if not step or glyphs + 2 * max(words) + 2 * step > offsets:
+            raise SystemExit(f"{offsets:06X}: no big font's offsets for {glyphs:06X} ({found})")
+        self.glyph_offsets.setdefault(offsets, (CHARACTERS, found))
+        self.glyphs.setdefault(glyphs, (max(words) // step + 1, 2 * step, found))
 
     def text_tables(self):
         """Tables of texts: what a reader's call gets as its text is "move.l (A0,Dn.w), -(A7)" after "movea.l
@@ -264,4 +312,8 @@ class TextsWalk:
             found.setdefault(table, (table + 4 * entries, "texts' table"))
         for table, (size, _) in self.text_indices.items():
             found.setdefault(table, (table + size, "text indices"))
+        for table, (characters, _) in self.glyph_offsets.items():
+            found.setdefault(table, (table + 2 * characters, "big font's offsets"))
+        for address, (count, size, _) in self.glyphs.items():
+            found.setdefault(address, (address + count * size, "big font"))
 

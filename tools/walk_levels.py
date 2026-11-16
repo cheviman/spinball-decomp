@@ -5,7 +5,7 @@ Description: Sonic the Hedgehog Spinball's tables' levels, walked from where the
              tools/data_walk.py)
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    15-11-2026
 Author:      Sebastian Toyos
 
   maps, brushes  what the code keeps in FF3CAC (a map) and FF58CC (its brushes) before the plane drawers
@@ -28,6 +28,16 @@ Author:      Sebastian Toyos
                  level, as many as FLIPPER_COUNTS says; their collision's shapes, lists like a sector's, by the
                  flipper's position (as many as the table holds before the next one), one table a side; and their
                  boxes by the position, those after the first (whose place the shapes' second table takes).
+  zones          the objects near the screen (0D61EA): ZONES by the level points at a block, a byte a zone of
+                 360x264 pixels in rows of 6 (0D6250, 0D6262, the row times 6 at 0D6270-0D6274), as many rows as
+                 the table's height in LEVEL_SIZES takes, each the place in the block of the zone's list: a count
+                 (0D639A), then that many objects' numbers (0D63C6). The lists follow the grid.
+  sectors' objs  a table's objects by sector, for the code of its objects (0E5198, 0E663A, 0F14BE): a word a
+                 sector of 128x128 pixels in rows of 16 (0F14A6-0F14BA), each the place in words of the sector's
+                 list: a word of how many, then that many objects' numbers. The code reads a sector's word and then
+                 the word at its place, from the same block: "movea.l #BLOCK, A0; move.w (A0,Dn.w), Dk; move.w Dk,
+                 D0; add.w D0, D0; movea.l #BLOCK, A0; move.w (A0,D0.w)". The grid is as long as the place of its
+                 first list says; the lists follow it.
 """
 import struct
 import sys
@@ -49,6 +59,9 @@ FLIPPERS = 0x0C08BE                 # by the level: the table's flippers (0DDEE0
 FLIPPER_COUNTS = 0x0C08EE           # by the level: how many (0DDEC8, FF58C4), a word each
 FLIPPER_SHAPES = (0x0C0A86, 0x0C0A96)   # by the flipper's position, a side each (0DE53C, 0DE530)
 FLIPPER_BOXES = 0x0C0A9C            # by the position, 10 bytes each (0DE336)
+ZONES = 0x0BFD14                    # by the level: the table's zones of objects (0D6242)
+ZONE_SIZE = (0x168, 0x108)          # a zone's width and height in pixels (0D6250, 0D6262)
+ZONE_COLUMNS = 6                    # the zones of a row of the grid (0D6270-0D6274)
 LEVEL_VALUES = {                    # the tables by the level walk_patterns does not find: their bytes a level
     0x0BFC50: (8, "palettes by level"),     # the palette of each of the four lines (0D419C-0D41D2: the line's
 }                                           # number is added to the index, then 0D8674)
@@ -69,6 +82,8 @@ class LevelsWalk:
         self.flippers = {}              # {address: (count, level)}
         self.flipper_shapes = {}        # {address: (size in bytes, how it was found)}
         self.flipper_boxes = (0, 0)     # (first, count) of the boxes walked
+        self.zones = {}                 # {block: (rows, {a list's place in the block: its count}, how it was found)}
+        self.object_sectors = {}        # {block: (cells, {a list's place in words: its count}, how it was found)}
 
     def level_pointer_store(self, position, address, instruction):
         """What the code keeps in one of LEVEL_POINTERS: an entry of a table by the level ("movea.l #TABLE, A0"
@@ -192,6 +207,46 @@ class LevelsWalk:
                      if FLIPPER_BOXES + levels.FLIPPER_BOX_BYTES * position >= FLIPPER_SHAPES[1] + 4 * positions)
         self.flipper_boxes = (first, positions - first)
 
+    def walk_zones(self):
+        """Each table's zones of objects: the grid, as many rows as its height takes, then the lists it places"""
+        if ZONES not in self.anchors:
+            raise SystemExit(f"{ZONES:06X} (zones by level): no instruction names it")
+        for level in range(LEVELS):
+            block = long_at(self.image, ZONES + 4 * level)
+            height = struct.unpack_from(">H", self.image, LEVEL_SIZES + 4 * level + 2)[0]
+            rows = (height - 1) // ZONE_SIZE[1] + 1
+            cells = self.image[block:block + rows * ZONE_COLUMNS]
+            if min(cells) < len(cells):
+                raise SystemExit(f"{block:06X}: a zone's list inside the grid of {rows} rows (level {level})")
+            lists = {place: self.image[block + place] for place in set(cells)}
+            self.zones[block] = (rows, lists, f"level {level} of {ZONES:06X}")
+        for position in range(len(self.ordered) - 5):
+            steps = [self.ordered[position + k][1] for k in range(6)]
+            if all(steps[k].mnemonic == "movea" and steps[k].operands[0].mode == "immediate" for k in (0, 4)) \
+                    and steps[0].operands[0].value == steps[4].operands[0].value \
+                    and all(steps[k].mnemonic == "move" and steps[k].operands[0].mode == "index" for k in (1, 5)) \
+                    and steps[2].mnemonic == "move" and steps[2].operands[0].reg == steps[1].operands[1].reg \
+                    and steps[3].mnemonic == "add":
+                block = steps[0].operands[0].value & 0xFFFFFF
+                if block < len(self.image):
+                    self.walk_object_sectors(block, f"read at {self.ordered[position + 1][0]:06X}")
+
+    def walk_object_sectors(self, block, found):
+        """A block of objects by sector: the grid up to its first list, then the lists"""
+        words = (len(self.image) - block) // 2
+
+        def word(index):
+            return struct.unpack_from(">H", self.image, block + 2 * index)[0]
+
+        cells, first = 0, word(0)
+        while cells < min(first, words):
+            first = min(first, word(cells))
+            cells += 1
+        if not cells:
+            raise SystemExit(f"{block:06X}: no objects' sectors ({found})")
+        self.object_sectors.setdefault(block, (cells, {place: word(place) for place in
+                                                       {word(cell) for cell in range(cells)}}, found))
+
     def spans_levels(self, found):
         for table, (kind, _) in self.pointer_tables.items():
             found[table] = (table + 4 * LEVELS, f"{kind} by level")
@@ -219,6 +274,14 @@ class LevelsWalk:
             found[address] = (address + levels.BRUSH_BYTES * count, "brushes")
         if self.widths_read:
             found[levels.MAP_WIDTHS] = (levels.MAP_WIDTHS + 2 * self.widths_read, "map widths")
+        for block, (cells, lists, _) in self.object_sectors.items():
+            found[block] = (block + 2 * cells, "objects' sectors")
+            for place, count in lists.items():
+                found[block + 2 * place] = (block + 2 * (place + 1 + count), "sector's objects")
+        for block, (rows, lists, _) in self.zones.items():
+            found[block] = (block + rows * ZONE_COLUMNS, "zones' grid")
+            for place, count in lists.items():
+                found[block + place] = (block + place + 1 + count, "zone's objects")
         for table, (size, kind) in LEVEL_VALUES.items():
             if table not in self.anchors:
                 raise SystemExit(f"{table:06X} ({kind}): no instruction names it")

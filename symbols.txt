@@ -48,6 +48,12 @@
 0D6A50  func  format_text
 0DE774  func  text_width
 0DE9D4  func  show_message
+# the game's trigonometry (tools/walk_patterns.py's interpolated tables): the sine of its argument, an angle of
+# 10000 a turn, 4000 for 1.0, from a quarter's table of 257 words at 0C02B6 (0D6918-0D6964); the angle of the point
+# whose y is its first argument and x its second (atan2), from the smaller over the bigger in the table of 257 words
+# at 0C04B8, 0 to 2000 (45 degrees), then the octant and the quadrant by the signs (0D6ADA-0D6B86)
+0D6918  func  sine
+0D6ADA  func  arctangent
 
 # ======== functions reached only through data ========
 
@@ -59,6 +65,24 @@
 0F4AE4  func  sequence_call_0F4AE4
 # the same sequencer's call at 0F47E4 reaches this one too (mdref --jumps, The Machine's and Showdown's runs)
 0F3676  func  sequence_call_0F3676
+# the rest of the functions the scripts call (their command 11: tools/walk_sequences.py walks the scripts from where
+# the code passes them to 0F4538 and lists the ones the analysis cannot see), each right after an rts. The script
+# commands that call each: 0F376A 09ADE4; 0F3774 09AE0A; 0F48FE 09A662; 0F4928 09A670; 0F4C36 09A7F2; 0F4D2A
+# 09A830; 0F4DFE 09A6AC; 0F4F2A 09A6C0; 0F504A 09AE74; 0F5122 09AE90; 0F52EC 09AEB4; 0F5D02 09B44C; 0F5E0E 09BBE0.
+# Their names wait for what they do.
+0F376A  func  sequence_call_0F376A
+0F3774  func  sequence_call_0F3774
+0F48FE  func  sequence_call_0F48FE
+0F4928  func  sequence_call_0F4928
+0F4C36  func  sequence_call_0F4C36
+0F4D2A  func  sequence_call_0F4D2A
+0F4DFE  func  sequence_call_0F4DFE
+0F4F2A  func  sequence_call_0F4F2A
+0F504A  func  sequence_call_0F504A
+0F5122  func  sequence_call_0F5122
+0F52EC  func  sequence_call_0F52EC
+0F5D02  func  sequence_call_0F5D02
+0F5E0E  func  sequence_call_0F5E0E
 
 # the functions animations call (their command 10: the step's long; tools/data_walk.py finds them and lists the ones
 # the analysis cannot see, which go here). The step that calls each: 07F24E 0D617A, 039314 0D6194, 039326 0D61AC,

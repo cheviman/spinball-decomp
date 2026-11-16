@@ -45,6 +45,8 @@ also exists.
 | 0x03909E, 0x07E55A, 0x098ECA, 0x07ED68 | animation pointers per level (TC, LP, TM, SD) | forum |
 | 0x0394AA... 0x081EB6 | level tilesets, SSC compressed (TC FG 0x394AA, BG 0x3DBB2; SD 0x4FEE4/0x53214; LP 0x64BB6/0x67672; TM 0x7F29C/0x81EB6), font 0x7DA22 | SSCDec, forum |
 | 0x0A1388–0x0A3126 | "C2" (LZW) graphics: intro 0xA3126, Veg-O-Fortress 0xA1B8C, Robotnik's ship 0xA30BC | forum |
+| 0x0A1386–0x0A3123 | not C2: the front end's screens. A palette of 64 colours (0xA1386, its count first), the screen maps 0F3C06 and 0F3C82 copy into the planes, uncompressed (a word of width and one of height, then the cells: 0xA14F8 12x4, 0xA1B8C 34x22, 0xA2168 10x8, 0xA220C 64x6, 0xA2510 64x22, 0xA30BC 10x5), and sprites of 8 bytes; the cutscene's C2 tiles start at 0xA3124 (a word, then the C2) | the code: tools/walk_screens.py (15-11-2026) |
+| 0x0A882A–0x0AA0AF | the Z80's program (GEMS's driver), copied into the Z80's RAM by 0F601C | the code: tools/walk_screens.py |
 | 0x0AA0B0 | GEMS patches | forum |
 | 0x0AB4AB–0x0BDD2E | GEMS modulators, sequences (0xAB502), samples (0xB39DD) | forum (2010) |
 | 0x0BDE06 | options screen frames (SSC) | SSCDec |

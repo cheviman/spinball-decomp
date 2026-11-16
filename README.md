@@ -12,7 +12,7 @@ decompiled C and the builds come next (`docs/plan.md`).
 
 ## Status
 
-As of 2026-11-13:
+As of 2026-11-15:
 
 - [x] Cartridge verification (USA, `GM MK-1537 -00`) by CRC32 and SHA-1
 - [x] Reference: the original program on MAME's 68000 core against the Mega Drive in C of
@@ -22,9 +22,9 @@ As of 2026-11-13:
 - [x] Control scripts for the four tables (`tests/controls/`): the level select's flag on and the table's
       button held at the start, then a fixed pattern of flippers and moves
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
-      calls in `tools/spinball_analysis.py`): 47,643 instructions in 430 functions, and every one of the 17,399 addresses the four scenarios
-      execute is found; the 14 functions reached only through data are in `symbols.txt` with how they were found
-- [x] The cartridge's bytes classified: 16.4% code, 69.7% described data, 0.6% unknown; the rest is data the
+      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 17,399 addresses the four scenarios
+      execute is found; the 27 functions reached only through data are in `symbols.txt` with how they were found
+- [x] The cartridge's bytes classified: 16.7% code, 81.0% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats
 - [x] The uncompressed sprites: their format read from the code (`0D7D02`-`0D7FB0`), the six tables walked
       from where the code hands them over (`tools/data_walk.py`), and the 457 sprites extracted as one sheet
@@ -39,6 +39,8 @@ As of 2026-11-13:
 - [x] The palettes and their colour cycles, as text that builds back byte for byte; the tables' planes pictured
       in their own colours
 - [x] The texts, found from the code that reads them, as text that builds back byte for byte
+- [x] The front end's screens (their maps, palettes and sprites, and the Z80's program) and the scripts of its
+      sequencer, walked a command at a time from the code that passes them (`tools/walk_sequences.py`)
 - [ ] The data with names and types, and the assets as editable files that build back byte for byte: sprites
       and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
       the GEMS music and samples
