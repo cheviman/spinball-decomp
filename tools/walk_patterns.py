@@ -664,7 +664,10 @@ class CodePatterns:
     def sequence_counter(self, position, address, instruction):
         """A sequence read by a counter the code steps on to N: "move.b COUNTER, Dn; ext.w Dn; add.w Dn, Dn;
         movea.l #TABLE, An; move.w (An,Dn.w)", and in the function "addq.b #1, COUNTER; cmpi.b #N, COUNTER"
-        (COUNTER an absolute byte or (Am)): N words"""
+        (COUNTER an absolute byte or (Am)): N words. A counter that stays at N once it gets there indexes on past
+        them: the options' level select (FF5750, 0FF034-0FF078) keeps its 15 until a press that is not the word it
+        indexes clears it, so the next press reads a 16th word, the options' sequence's first (0FF044 reads 0D3D28
+        in `options`), and while the presses go on matching it, the words after"""
         operands = instruction.operands
         if instruction.mnemonic != "movea" or len(operands) != 2 or operands[0].mode != "immediate" or position < 3 \
                 or operands[0].value & 0xFFFFFF >= len(self.image):

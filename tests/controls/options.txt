@@ -1,0 +1,69 @@
+# The options from the title (Start, down to OPTIONS and Start: 0F2E26 returns 2, 0D47EA runs 0FEF2A), every
+# value of each, each wrapped both ways (0FEFDE-0FF012: right up to the count at 0D3B50, left under 0), the cursor
+# past both ends, the level select's 15 buttons (0D3D0A, 0FF03E: FFF8F8 set at 0FF06E), and the credits' 15
+# (0D3D28, 0FF084), which leave the options with the values kept (FFF8D4, FFF8D5, FFF8D7, FFF8D8 at FAST's 13h)
+# and run the credits (0FF1F0) whole, nothing pressed, back to the title at 6250. A press every 12 frames, from
+# when the options screen is up.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press down1
+740 press start1
+900 press right1
+912 press right1
+924 press right1
+936 press right1
+948 press left1
+960 press right1
+972 press up1
+984 press a1
+996 press down1
+1008 press b1
+1020 press down1
+1032 press c1
+1044 press down1
+1056 press a1
+1068 press b1
+1080 press up1
+1092 press a1
+1104 press c1
+1116 press up1
+1128 press b1
+1140 press c1
+1152 press up1
+1164 press down1
+1176 press down1
+1188 press down1
+1200 press down1
+1212 press up1
+1224 press up1
+1236 press right1
+1248 press right1
+1260 press left1
+1272 press down1
+1284 press left1
+1296 press right1
+1308 press right1
+1320 press down1
+1332 press right1
+1344 press right1
+1356 press right1
+1368 press left1
+1380 press right1
+1392 press right1
+1404 press right1
+1416 press c1
+1428 press up1
+1440 press b1
+1452 press up1
+1464 press a1
+1476 press up1
+1488 press c1
+1500 press b1
+1512 press down1
+1524 press c1
+1536 press a1
+1548 press down1
+1560 press b1
+1572 press a1
+1584 press down1
+6400 end

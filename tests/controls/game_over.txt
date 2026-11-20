@@ -1,0 +1,48 @@
+# Game over from the title: Toxic Caves (no button held at the start, the level select off) and its three balls
+# lost with no flipper pressed. Sonic waits at the start of each ball until he is moved: each is started with the
+# first 386 bytes of the demo's controls (0BFCA0: up and right to the launcher at x 480, left, then C three times),
+# each at the frame its step starts in the attract (the demo plays a byte a step, 0D4770, and a step can take two
+# frames), counted from the frame the ball's play starts (FF3CB4 at 2, the player's byte at +0C at 1): 952, 3717 and
+# 5728. The third is lost at 6588; mode 6's step with no ball left (0D4E40-0D4EC4) checks each player's score
+# against the table (0FF396), shows the high scores (0FF2A6) and goes back to the front end: the title at 8500.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press start1
+780 press start1
+952 hold up1
+952 hold right1
+1058 release up1
+1062 release right1
+1159 hold left1
+1200 release left1
+1215 hold c1
+1276 release c1
+1323 hold c1
+1434 release c1
+1483 hold c1
+1545 release c1
+3717 hold up1
+3717 hold right1
+3823 release up1
+3827 release right1
+3924 hold left1
+3965 release left1
+3980 hold c1
+4041 release c1
+4088 hold c1
+4199 release c1
+4248 hold c1
+4310 release c1
+5728 hold up1
+5728 hold right1
+5834 release up1
+5838 release right1
+5935 hold left1
+5976 release left1
+5991 hold c1
+6052 release c1
+6099 hold c1
+6210 release c1
+6259 hold c1
+6321 release c1
+8700 end

@@ -1,0 +1,4 @@
+# The attract with nothing pressed: the Sega logo (0F2554), the title (0F2E26) until its time runs out, the intro
+# (0F2C82), the demo (0D46FE: Toxic Caves, played by the controls at 0BFCA0, which 0D4770 reads a byte a step until
+# FF), the high scores (0FF2A6), then 0D47DE again from the Sega logo
+5000 end
