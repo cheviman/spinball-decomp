@@ -4,7 +4,7 @@ Description: Sonic the Hedgehog Spinball's data the code hands to its engines, w
              over, and checked against what the reference reads
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    16-11-2026
+Modified:    19-11-2026
 Author:      Sebastian Toyos
 
 Usage: python tools/data_walk.py [cartridge] [--reads FOLDER]
@@ -18,11 +18,13 @@ reads it; what it reads names more places. By subject:
   tools/walk_animations.py   the animated objects' definitions, descriptors, sprite tables, animations and lists,
                              and the tables' objects
   tools/walk_graphics.py     the tiles the loaders get, the palettes, the colour cycles
-  tools/walk_levels.py       the planes' maps and brushes, the collision, the flippers, the tables' values
+  tools/walk_levels.py       the planes' maps and brushes, the collision, the flippers, the tables' values, the
+                             bonus stage's half maps
   tools/walk_texts.py        the texts the functions that read them get
   tools/walk_screens.py      the front end's screens (maps, palettes, sprites) and the Z80's program
   tools/walk_sequences.py    the front end's scripts, a command at a time
   tools/walk_states.py       the chains of states 0F789A sets the objects to
+  tools/walk_unnamed.py      what no code names, by the kind of what it lies against
 A place that does not read as what it is taken for stops the walk with what is wrong.
 """
 import glob
@@ -43,15 +45,16 @@ from walk_screens import ScreensWalk  # noqa: E402
 from walk_sequences import SequencesWalk  # noqa: E402
 from walk_states import StatesWalk  # noqa: E402
 from walk_texts import TextsWalk  # noqa: E402
+from walk_unnamed import UnnamedWalk  # noqa: E402
 
 class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, ScreensWalk,
-           SequencesWalk, StatesWalk):
+           SequencesWalk, StatesWalk, UnnamedWalk):
     """The walk: what each subject finds, from the code and from what it finds"""
 
     def __init__(self, analysis):
         self.analysis = analysis
         self.image = analysis.image
-        self.anchors = set()            # places the code names: an animation that runs on ends there
+        self.anchors = set()            # places the code names (an animation that runs on ends at those it hands over)
         self.init_patterns()
         self.init_animations()
         self.init_graphics()
@@ -81,6 +84,8 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
             self.masked_index(position, address, instruction)
             self.counted_loop(position, address, instruction)
             self.pointed_record(position, address, instruction)
+            self.scaled_index(position, address, instruction)
+            self.read_in_place(position, address, instruction)
             self.sprite_table_store(instructions, position, address, instruction)
             lists.extend(self.animation_list_load(instructions, position, address))
             self.object_table_load(instructions, position, address)
@@ -95,12 +100,19 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.handed = set(self.anchors)
         for instruction in self.analysis.instructions.values():
             self.anchors.update(place for place in data_places(instruction) if place < len(self.image))
+        self.searched_tables()
         self.walk_planes()
         self.walk_collisions()
         self.walk_flippers()
         self.walk_zones()
+        self.walk_half_maps()
+        self.walk_segment_tables()
+        self.walk_demo()
+        self.walk_box_lists()
         self.walk_texts()
+        self.walk_region_lock()
         self.walk_screens()
+        self.walk_tasks()
         self.walk_gems()
         self.walk_sequences()
         self.walk_states()
@@ -131,7 +143,11 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.spans_screens(found)
         self.spans_sequences(found)
         self.spans_states(found)
+        self.spans_scaled(found)
         self.spans_pointed(found)
+        self.spans_in_place(found)
+        self.spans_zeros(found)
+        self.spans_unnamed(found)
         return found
 
 

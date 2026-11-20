@@ -2,9 +2,9 @@
 Name:        walk_texts.py
 Description: Sonic the Hedgehog Spinball's texts, walked from the code that hands them to the functions that read
              them (for tools/data_walk.py)
-Version:     0.1.0
+Version:     0.2.0
 Created:     13-11-2026
-Modified:    15-11-2026
+Modified:    19-11-2026
 Author:      Sebastian Toyos
 
   readers        a function reads one of its arguments as a text when its prologue loads it into An and the
@@ -43,6 +43,8 @@ PERCENT, STRING = 0x25, 0x73        # what a format reader compares the text's b
 TEXT_PAD = 0xFF                     # what evens the place after a text of an odd length
 CHARACTERS = 128                    # the font's: the texts' bytes are 0-127
 MAX_TEXT = 256                      # the longest a text of a table can be
+REGION_PRINT = 0x0003E0             # the boot's printer of a text, for the console it does not run on
+REGION_GLYPH = 8                    # the bytes of a character of its font: a bit a pixel, 8 rows (000368-00037E)
 
 
 def read_text(image, address):
@@ -76,6 +78,45 @@ class TextsWalk:
         self.text_indices = {}          # {address: (size, how it was found)}
         self.glyph_offsets = {}         # {address: (glyphs, how it was found)}: the big font's, by character
         self.glyphs = {}                # {address: (glyphs, bytes each, how it was found)}
+        self.region_lock = {}           # {address: (size, kind, how it was found)}: the boot's texts and font
+
+    def walk_region_lock(self):
+        """The screen the boot shows on a console of a region the cartridge is not for (000300-00040C). What
+        "lea (PLACE,PC), An" loads before REGION_PRINT, the code that runs first:
+          a text       A0, and "bsr REGION_PRINT" within the next three: a byte, the column ("move.b (A0)+, D0",
+                       00038C), and the characters up to a 0 (0003FA-0003FE)
+          the regions  a register the next instruction reads a word from, "move.w (A2)+, D4" (00039E): a word,
+                       the region's letter, and a long, its text ("movea.l (A2)+, A0", 0003C2), until a word
+                       whose low byte is 0 ("tst.b D4; beq", 0003A0-0003A2)
+          the font     A0, and "moveq #N, D0" next: N + 1 characters of REGION_GLYPH bytes (000360-000382)"""
+        for position, (address, instruction) in enumerate(self.ordered):
+            if address >= REGION_PRINT:
+                break
+            operands = instruction.operands
+            if instruction.mnemonic != "lea" or operands[0].mode != "pc_disp":
+                continue
+            place, register = operands[0].value & 0xFFFFFF, operands[1].reg
+            following = [self.ordered[position + ahead][1] for ahead in (1, 2, 3)]
+            first = following[0]
+            where = f"by the boot at {address:06X}"
+            if any(step.flow == "call" and step.target == REGION_PRINT for step in following):
+                self.add_region_text(place, f"printed {where}")
+            elif first.mnemonic == "move" and first.size == "w" and first.operands[0].mode == "postinc" \
+                    and first.operands[0].reg == register:
+                at = place
+                while self.image[at + 1]:
+                    self.add_region_text(long_at(self.image, at + 2), f"the text of the region at {at:06X}")
+                    at += 6
+                self.region_lock[place] = (at + 2 - place, "region lock's regions", f"read {where}")
+            elif first.mnemonic == "moveq" and first.operands[1].reg == "D0":
+                glyphs = first.operands[0].value + 1
+                self.region_lock[place] = (glyphs * REGION_GLYPH, "region lock's font", f"loaded {where}")
+
+    def add_region_text(self, address, found):
+        stop = address + 1
+        while self.image[stop]:
+            stop += 1
+        self.region_lock.setdefault(address, (stop + 1 - address, "region lock's text", found))
 
     def function_body(self, function):
         """The positions of a function's instructions, up to the next function"""
@@ -316,4 +357,6 @@ class TextsWalk:
             found.setdefault(table, (table + 2 * characters, "big font's offsets"))
         for address, (count, size, _) in self.glyphs.items():
             found.setdefault(address, (address + count * size, "big font"))
+        for address, (size, kind, _) in self.region_lock.items():
+            found.setdefault(address, (address + size, kind))
 

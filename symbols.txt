@@ -103,6 +103,65 @@
 # add a node; mdref --jumps: 0F62D4 -> 0F43E0, 0F4492
 0F43E0  func  vblank_task_0F43E0
 0F4492  func  vblank_task_0F4492
+# the task of the node 0F442C, which 0F275E, 0F27DA and 0F2B84 pass to 0F4396 (no scenario runs it)
+0F4430  func  vblank_task_0F4430
+# functions nothing calls: bytes between two functions that decode as instructions from their start to a
+# return, which no call, no jump and no table of the cartridge reaches (tools/coverage.py listed them as
+# unknown runs that decode whole, each after a return or a table and ending in one); no scenario runs them
+0D3E10  func  uncalled_0D3E10
+0D67F2  func  uncalled_0D67F2
+0D6888  func  uncalled_0D6888
+0D6ACC  func  uncalled_0D6ACC
+0D81C0  func  uncalled_0D81C0
+0D8404  func  uncalled_0D8404
+0D857C  func  uncalled_0D857C
+0D861A  func  uncalled_0D861A
+0D8CC0  func  uncalled_0D8CC0
+0EACDE  func  uncalled_0EACDE
+0F39E8  func  uncalled_0F39E8
+0F3A3A  func  uncalled_0F3A3A
+0F3CFE  func  uncalled_0F3CFE
+0F3DF2  func  uncalled_0F3DF2
+0F5FA6  func  uncalled_0F5FA6
+0F6012  func  uncalled_0F6012
+0F6ACA  func  uncalled_0F6ACA
+# code no jump reaches: GEMS's calls the game does not use (0F617C, 0F61AE-0F628B: each a "jsr $f6088; moveq
+# #COMMAND, D0; bra $f6164" like 0F615E and 0F6174, or a function of its own), the entries of the long
+# multiply's and divides' that take a pointer (0FF8B6, 0FF8E2, 0FF91E, 0FF982: "move.l (A0), D1" and on into
+# the function), 0D68DE, a "stop" and a "rts" at 0D3E68 and 0D3E6E, and the end of the function at 0D527A
+# after the jump that closes its loop (0D54C8)
+0D54C8  code  unreached_0D54C8
+0F6256  func  uncalled_0F6256
+0F6260  func  uncalled_0F6260
+0F6282  func  uncalled_0F6282
+0F6230  func  uncalled_0F6230
+0F6228  func  uncalled_0F6228
+0F6220  func  uncalled_0F6220
+0F6218  func  uncalled_0F6218
+0F61F4  func  uncalled_0F61F4
+0F61EC  func  uncalled_0F61EC
+0F61E4  func  uncalled_0F61E4
+0F61DC  func  uncalled_0F61DC
+0F61BE  func  uncalled_0F61BE
+0F61B6  func  uncalled_0F61B6
+0FF99E  func  uncalled_0FF99E
+0D3E68  func  uncalled_0D3E68
+0D3E6E  func  uncalled_0D3E6E
+0D68DE  func  uncalled_0D68DE
+0F617C  func  uncalled_0F617C
+0F61AE  func  uncalled_0F61AE
+0FF8B6  func  uncalled_0FF8B6
+0FF8E2  func  uncalled_0FF8E2
+0FF91E  func  uncalled_0FF91E
+0FF982  func  uncalled_0FF982
+# the functions after those, in the same runs
+0D3E24  func  uncalled_0D3E24
+0D67FC  func  uncalled_0D67FC
+0D68B2  func  uncalled_0D68B2
+0EAD14  func  uncalled_0EAD14
+0F39F4  func  uncalled_0F39F4
+0F3E48  func  uncalled_0F3E48
+0F5FE4  func  uncalled_0F5FE4
 
 # ======== data ========
 

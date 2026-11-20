@@ -55,10 +55,30 @@ CARTRIDGE = 0x400000                # the places below it are the cartridge's
 TABLE_WALKED = 40                   # how far back from a push its table's "movea.l #TABLE" is looked for
 
 
+TASK_LISTERS = (0x0F4396, 0x0F43BA)     # they add a node to the VBLANK's tasks and take one out
+BOX_CLEARER = 0x0F3D76              # clears cells of plane B: its first argument, the words of a row (0F3DBE) and
+                                    # the rows (0F3DB8)
+
 class ScreensWalk:
     """The front end's maps, palettes and sprites, and the Z80's program"""
 
+    def walk_tasks(self):
+        """The nodes of the VBLANK's list of tasks, what TASK_LISTERS get: a long, where the next node's address
+        is kept (0F43B0-0F43B4), and then the task's code (symbols.txt has those)"""
+        for position, (address, instruction) in enumerate(self.ordered):
+            if instruction.flow == "call" and self.call_target(position) in TASK_LISTERS:
+                for node, _ in self.pointers_passed(position, 0):
+                    self.task_nodes.setdefault(node, f"passed to {self.call_target(position):06X} at {address:06X}")
+
+        for position, (address, instruction) in enumerate(self.ordered):
+            if instruction.flow == "call" and self.call_target(position) == BOX_CLEARER:
+                for box, where in self.pointers_passed(position, 0):
+                    if where is None:
+                        self.cleared_boxes.setdefault(box, f"passed to {BOX_CLEARER:06X} at {address:06X}")
+
     def init_screens(self):
+        self.task_nodes = {}            # {address: how it was found}
+        self.cleared_boxes = {}         # {address: how it was found}: what 0F3D76 clears, a word across and one down
         self.screen_maps = {}           # {address: (width, height, how it was found)}
         self.screen_records = {}        # {address: how it was found}
         self.record_maps = {}           # {the place of a record's map: how}, where the code takes only the map
@@ -310,6 +330,10 @@ class ScreensWalk:
             self.gems_banks[bank] = (kind, f"sent to the driver at {address:06X}")
 
     def spans_screens(self, found):
+        for address in self.task_nodes:
+            found.setdefault(address, (address + 4, "task's link"))
+        for address in self.cleared_boxes:
+            found.setdefault(address, (address + 4, "cleared box's size"))
         for address, (width, height, _) in self.screen_maps.items():
             found.setdefault(address, (address + 4 + 2 * width * height, "screen map"))
         for address in self.screen_records:

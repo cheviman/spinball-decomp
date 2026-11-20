@@ -1,11 +1,11 @@
 """
 Name:        walk_levels.py
 Description: Sonic the Hedgehog Spinball's tables' levels, walked from where the code keeps them: the planes'
-             maps and brushes, the collision, the flippers, the values by the level (for
-             tools/data_walk.py)
-Version:     0.1.0
+             maps and brushes, the collision, the flippers, the values by the level, and the bonus stage's
+             half maps (for tools/data_walk.py)
+Version:     0.2.0
 Created:     13-11-2026
-Modified:    15-11-2026
+Modified:    19-11-2026
 Author:      Sebastian Toyos
 
   maps, brushes  what the code keeps in FF3CAC (a map) and FF58CC (its brushes) before the plane drawers
@@ -38,6 +38,37 @@ Author:      Sebastian Toyos
                  the word at its place, from the same block: "movea.l #BLOCK, A0; move.w (A0,Dn.w), Dk; move.w Dk,
                  D0; add.w D0, D0; movea.l #BLOCK, A0; move.w (A0,D0.w)". The grid is as long as the place of its
                  first list says; the lists follow it.
+  half maps      the bonus stage's two planes (0FA588), which the code writes to the VDP itself, a row at a time,
+                 the left half as the cartridge has it and the right half as its mirror: "movea.l #MAP, A0; lea
+                 (A0,D0.w), A0" with D0 twice the count of the words read so far, read on with "(A3)+", and then
+                 "movea.l #MAP - 2, A0; lea (A0,D0.w), A0", the word before the next one, read back with "subq.l
+                 #2, A3" and flipped ("eor.w" with 0800h: 0FA8B0-0FA8C4). A map is the one a function loads both
+                 ways. Plane A's, 0C6EF0 (VRAM C000, 0FA838): 20 words a row (8 and 12 more, 0FA86A and 0FA898)
+                 for 19 rows (0FA91A), with A000h and 2000h added, and for 9 more (to 1Ch, 0FA9F8), 12 with 8000h
+                 and 8 as they are (0FA94E, 0FA976); the mirror takes the same words from the last back
+                 (0FA8CA-0FA8FC, 0FA9A6-0FA9DA), and 24 cells of 1 fill the row's 64 (0FA900-0FA916). Plane B's,
+                 0C7350 (VRAM E000, 0FAA0A): 20 words a row (0FAA36) for 28 rows (0FAA86), as they are. A half
+                 map ends where the next one starts or at a place the code hands over (the bonus stage's tiles,
+                 0C77B0).
+  segments       the tables 0F9656 reads for the object it is given (its X the long at +2, its Y at +6), by the
+                 side of X 92h it is on (0F9682-0F968E, 0F9C8C-0F9CA6) and by the position that side's variable
+                 holds, FF55A4 or FFF1EC (0F9694, 0F969C): 0-6 (set at 0FA43C-0FA524 and 0FA2D2-0FA3C2). A
+                 segment is 26 bytes: the X and Y of its two ends, longs of 16.16 pixels (0F96C4-0F96EC,
+                 0F97AE), its direction, two longs (0F9710, 0F9740), and a word the code tests (0F98AC).
+                 0D35FE: 18 segments, 9 a side, walked from the side's first, 1Ah bytes on a round
+                 (0F9CA8-0F9EEC). 0D37D2: 2 a position, 7 positions, a block of 16Ch bytes a side ("mulu.w
+                 #$16c", 0F96B6; twice the position plus 0 or 1, times 26: 0F96A4-0F96B2, 0F99F2-0F99F8).
+                 0D3AAA: a point, two longs, a position, 7 a side (the side times 56 plus the position times 8,
+                 0F9B46-0F9B5C). 0D3B1A: a point a side (0F9A0A-0F9A26). 0D358E: 14 points, walked one after
+                 the other, 8 bytes on a round (0F9EFA-0F9FF0, "moveq #$e"). The reader must name each, and
+                 each ends where the next starts or at a place the code names (0D3B2A).
+  boxes' lists   what 0E738C gets with the object it tests (its third and fourth arguments, "pea LIST.l" and "pea
+                 COUNT.w": 0E6F00-0E6F0E): COUNT longs, each the address of a box of four words the object's
+                 place is added to (0E73BA, 0E73CE-0E741C). The 4 bytes of 0 after each box no code reads.
+  demo           the controls the demo plays (0D4722, "movea.l #SCRIPT, A2", the only address the function loads
+                 A2 with), a byte at a time (DEMO_READ, 0D4770): FF ends it (0D4772-0D4776); a byte over 7F is how
+                 many frames, less 80h, the next byte's buttons are held (0D4778-0D4788); any other, the buttons
+                 of a frame (0D478A-0D478E).
 """
 import struct
 import sys
@@ -62,7 +93,20 @@ FLIPPER_BOXES = 0x0C0A9C            # by the position, 10 bytes each (0DE336)
 ZONES = 0x0BFD14                    # by the level: the table's zones of objects (0D6242)
 ZONE_SIZE = (0x168, 0x108)          # a zone's width and height in pixels (0D6250, 0D6262)
 ZONE_COLUMNS = 6                    # the zones of a row of the grid (0D6270-0D6274)
-LEVEL_VALUES = {                    # the tables by the level walk_patterns does not find: their bytes a level
+HALF_MAP = (20, 28)                 # a half map's words a row and its rows (0FA898 and 0FA9F8, 0FAA36 and 0FAA86)
+BOXES_TESTER = 0x0E738C             # tests an object against a list of boxes
+BOX_SIZE = 8
+BOXES_WALKED = 12                   # how far back from the call a list's load into a register is looked for
+DEMO_READ = 0x0D4770                # where the demo reads a byte of its controls, "move.b (A2)+, D3"
+SEGMENTS_READER = 0x0F9656
+SEGMENT_TABLES = {                  # the tables it reads: a record's bytes, its records, what they are
+    0x0D358E: (8, 14, "points"),
+    0x0D35FE: (26, 18, "segments by side"),
+    0x0D37D2: (26, 28, "segments by side and position"),
+    0x0D3AAA: (8, 14, "points by side and position"),
+    0x0D3B1A: (8, 2, "points by side"),
+}
+LEVEL_VALUES = {                # the tables by the level walk_patterns does not find: their bytes a level
     0x0BFC50: (8, "palettes by level"),     # the palette of each of the four lines (0D419C-0D41D2: the line's
 }                                           # number is added to the index, then 0D8674)
 
@@ -84,6 +128,53 @@ class LevelsWalk:
         self.flipper_boxes = (0, 0)     # (first, count) of the boxes walked
         self.zones = {}                 # {block: (rows, {a list's place in the block: its count}, how it was found)}
         self.object_sectors = {}        # {block: (cells, {a list's place in words: its count}, how it was found)}
+        self.half_maps = {}             # {address: (words a row, rows, how it was found)}
+        self.segment_tables = {}        # {address: (stop, kind, how it was found)}
+        self.demo_controls = {}         # {address: (size, how it was found)}
+        self.box_lists = {}             # {address: (boxes, how it was found)}
+        self.list_boxes = {}            # {address: how it was found}
+
+    def walk_box_lists(self):
+        for position, (address, instruction) in enumerate(self.ordered):
+            if instruction.flow != "call" or self.call_target(position) != BOXES_TESTER:
+                continue
+            counts = [push.operands[0].value for push in self.pushes(position, 3) or ()
+                      if push.mnemonic == "pea" and push.operands[0].mode == "abs_short"]
+            lists = [place for place, where in self.pointers_passed(position, 2) if where is None]
+            if not lists and len(counts) == 1:
+                # the list comes in a register, one of the addresses the lines before load: 0E6F62, A5 from D0,
+                # 0C3216 or 0C321E (0E6F4A-0E6F58)
+                for _, step in self.ordered[position - BOXES_WALKED:position]:
+                    operands = step.operands
+                    if step.mnemonic == "move" and step.size == "l" and operands[0].mode == "immediate"                             and operands[1].mode == "dreg" and not operands[0].value & 1                             and 0 < operands[0].value & 0xFFFFFF < len(self.image):
+                        self.add_box_list(operands[0].value & 0xFFFFFF, counts[0], f"loaded at {step.address:06X} "
+                                          f"and passed to {BOXES_TESTER:06X} at {address:06X}")
+                continue
+            if len(counts) != 1 or len(lists) != 1:
+                raise SystemExit(f"{address:06X}: the list of boxes {BOXES_TESTER:06X} gets, or its count, is not "
+                                 f"an address and a number")
+            self.add_box_list(lists[0], counts[0], f"passed to {BOXES_TESTER:06X} at {address:06X}")
+
+    def add_box_list(self, boxes, count, found):
+        self.box_lists[boxes] = (count, found)
+        for entry in range(count):
+            box = long_at(self.image, boxes + 4 * entry)
+            if box & 1 or box + BOX_SIZE > len(self.image):
+                raise SystemExit(f"{boxes:06X}: its entry {entry} is no box ({box:06X}; {found})")
+            self.list_boxes.setdefault(box, f"entry {entry} of the list {boxes:06X}")
+
+    def walk_demo(self):
+        position = self.position_of.get(DEMO_READ)
+        read = self.ordered[position][1] if position is not None else None
+        if read is None or read.operands[0].mode != "postinc":
+            raise SystemExit(f"{DEMO_READ:06X}: the demo does not read its controls there")
+        script = self.table_in(position, read.operands[0].reg)
+        if script is None or script >= len(self.image):
+            raise SystemExit(f"{DEMO_READ:06X}: no controls for the demo")
+        at = script
+        while self.image[at] != 0xFF:
+            at += 2 if self.image[at] > 0x7F else 1
+        self.demo_controls[script] = (at + 1 - script, f"read by the demo at {DEMO_READ:06X}")
 
     def level_pointer_store(self, position, address, instruction):
         """What the code keeps in one of LEVEL_POINTERS: an entry of a table by the level ("movea.l #TABLE, A0"
@@ -247,7 +338,49 @@ class LevelsWalk:
         self.object_sectors.setdefault(block, (cells, {place: word(place) for place in
                                                        {word(cell) for cell in range(cells)}}, found))
 
+    def walk_half_maps(self):
+        loads = {}                      # {(function, table): where it loads it to index it}
+        for position, (address, instruction) in enumerate(self.ordered[:-1]):
+            operands, after = instruction.operands, self.ordered[position + 1][1]
+            if instruction.mnemonic == "movea" and operands[0].mode == "immediate" and after.mnemonic == "lea" \
+                    and after.operands[0].mode == "index" and after.operands[0].reg == operands[1].reg:
+                loads.setdefault((self.function_of(address), operands[0].value & 0xFFFFFF), address)
+        width, rows = HALF_MAP
+        for (function, table), address in sorted(loads.items()):
+            if (function, table - 2) in loads and table + 2 * width * rows <= len(self.image):
+                self.half_maps[table] = (width, rows, f"read by {function:06X} at {address:06X} and back from "
+                                                      f"{table - 2:06X} at {loads[function, table - 2]:06X}")
+        for table, (_, _, found) in self.half_maps.items():
+            stop = table + 2 * width * rows
+            if stop not in self.half_maps and stop not in self.anchors:
+                raise SystemExit(f"{table:06X}: a half map that ends at {stop:06X}, where nothing starts ({found})")
+
+    def walk_segment_tables(self):
+        named = {}                      # {table: where the reader names it}
+        for address, instruction in self.ordered:
+            operands = instruction.operands
+            if instruction.mnemonic == "movea" and operands[0].mode == "immediate" \
+                    and self.function_of(address) == SEGMENTS_READER:
+                named.setdefault(operands[0].value & 0xFFFFFF, address)
+        for table, (size, records, kind) in SEGMENT_TABLES.items():
+            stop = table + size * records
+            if table not in named:
+                raise SystemExit(f"{table:06X}: {SEGMENTS_READER:06X} does not name it ({kind})")
+            if stop not in SEGMENT_TABLES and stop not in self.anchors:
+                raise SystemExit(f"{table:06X}: {kind} that end at {stop:06X}, where nothing starts")
+            self.segment_tables[table] = (stop, kind, f"read by {SEGMENTS_READER:06X} at {named[table]:06X}")
+
     def spans_levels(self, found):
+        for address, (size, _) in self.demo_controls.items():
+            found[address] = (address + size, "demo's controls")
+        for address, (boxes, _) in self.box_lists.items():
+            found[address] = (address + 4 * boxes, "boxes' list")
+        for address in self.list_boxes:
+            found.setdefault(address, (address + BOX_SIZE, "box of a list"))
+        for address, (stop, kind, _) in self.segment_tables.items():
+            found[address] = (stop, kind)
+        for address, (width, rows, _) in self.half_maps.items():
+            found[address] = (address + 2 * width * rows, "half map")
         for table, (kind, _) in self.pointer_tables.items():
             found[table] = (table + 4 * LEVELS, f"{kind} by level")
         for address, (width, rows, _) in self.maps.items():

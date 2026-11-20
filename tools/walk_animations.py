@@ -3,9 +3,9 @@ Name:        walk_animations.py
 Description: Sonic the Hedgehog Spinball's animated objects, walked from where the code hands them over: the
              definitions, their sprite descriptors, the sprite tables, the animations and their lists,
              and the tables' objects (for tools/data_walk.py)
-Version:     0.1.0
+Version:     0.1.1
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    19-11-2026
 Author:      Sebastian Toyos
 
   definition     what make_animated_object (0D5F16) takes as its first argument, 12 bytes: the address of a
@@ -29,9 +29,10 @@ Author:      Sebastian Toyos
                  that goes elsewhere for good (03); after a step that gives the object back to its owner's code
                  (a frame, 01, 07, 08, 09: the owner may give it another animation), what does not read as a step
                  is the animation's end (the animation at 03948A ends with 01 at 0394A8, before Toxic Caves'
-                 tileset at 0394AA), and so is a place the code names (an anchor: what it hands over, the start
-                 of a list or a table, an address an instruction reads or takes: an animation that runs on stops
-                 there). A frame shows a sprite of its object's table, so a frame of a sprite the table does not
+                 tileset at 0394AA), and so is a place the code hands over (what it passes or keeps, the start
+                 of a list or a table: an animation that runs on stops there; not what is only a constant of an
+                 instruction, which may be a number: 000BB8, in the middle of an animation, is the 3,000 points
+                 0F888A adds). A frame shows a sprite of its object's table, so a frame of a sprite the table does not
                  have is no step. The definitions their 0C commands hold are walked too, and the
                  functions their 10 commands call and the tables their values read are listed.
   animation list a list of animations' addresses the code gives an object one of: it takes an entry, less 2, as
@@ -69,6 +70,8 @@ DESCRIPTOR_SIZE = 8
 SPRITE_LINK_FIELD = 0x3A            # an object's link to the structure that holds its sprite table
 SPRITE_TABLE_FIELD = 0x0A           # that structure's sprite table
 
+
+LOADS_WALKED = 96                   # how far back from a call a register's load is looked for
 
 class AnimationWalk:
     """The definitions, descriptors and sprite tables, animations and their lists, the tables' objects"""
@@ -126,6 +129,38 @@ class AnimationWalk:
                 index = next(index for index in range(LEVELS) if long_at(self.image, table + 4 * index) == definition)
                 self.definitions.setdefault(definition, f"entry {index} of {table:06X}, {how}")
                 self.level_tables[table] = f"indexed by the level, {how}"
+        # "move.l An, -(A7)" with An one of the addresses the function loads it with, each on its way: all of them
+        # (0E58A4: A3 is 0C0CA0, 0C0C94 or 0C0C88, loaded at 0E57F2, 0E583C and 0E5878)
+        for push in self.pushes(position, self.makers[maker][0]) or ():
+            source = push.operands[0]
+            if push.mnemonic == "move" and source.mode == "areg":
+                for definition, at in self.loads_before(position, source.reg):
+                    self.definitions.setdefault(definition, f"loaded at {at:06X} and {how}")
+
+    def loads_before(self, position, register):
+        """[(place, where)] of the "movea.l #PLACE, An" that reach the instruction at 'position', back along every
+        way to it (through the jumps and branches that come in); none when a way loads An with anything else, or
+        runs LOADS_WALKED instructions back without loading it"""
+        loads, seen, work = [], set(), [(position - 1, 0)]
+        while work:
+            at, far = work.pop()
+            if at in seen:
+                continue
+            seen.add(at)
+            address, instruction = self.ordered[at]
+            operands = instruction.operands
+            if writes(instruction, register):
+                place = operands[0].value & 0xFFFFFF if operands else 0
+                if instruction.mnemonic != "movea" or operands[0].mode != "immediate" or place >= len(self.image):
+                    return []
+                loads.append((place, address))
+                continue
+            if far >= LOADS_WALKED or at == 0 or address in self.analysis.functions:
+                return []
+            if self.ordered[at - 1][1].flow not in ("jump", "return"):
+                work.append((at - 1, far + 1))
+            work.extend((source, far + 1) for source in self.comes_from.get(address, ()))
+        return sorted(loads)
 
     def sprite_table_store(self, instructions, position, address, instruction):
         operands = instruction.operands
@@ -257,7 +292,7 @@ class AnimationWalk:
                     break
                 after_yield = step.yields
                 address += step.length
-                if address in self.anchors:
+                if address in self.handed:
                     break
         return steps, None
 
