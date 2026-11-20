@@ -65,7 +65,8 @@ DEFINITION_SIZE = 12
 TABLE_OBJECT_SIZE = 20              # a table's object, as the code that sets the table up copies it
 TABLE_OBJECT_DEFINITION = 0x0A      # its definition's long
 TABLE_OBJECT_BOX = 0x0E             # its box's long (the game object's field 1C: 0E51EA)
-OBJECT_BOX_SIZE = 8                 # x0, y0, x1, y1 from the object's place (0E51F4-0E520E)
+OBJECT_BOX_SIZE = 10                # x0, y0, x1, y1 from the object's place (0E51F4-0E520E), and the word at +8
+                                    # that 0E5EBA takes with the first three (0E5E9A-0E5EBA: 0C16B8, 8000)
 DESCRIPTOR_SIZE = 8
 SPRITE_LINK_FIELD = 0x3A            # an object's link to the structure that holds its sprite table
 SPRITE_TABLE_FIELD = 0x0A           # that structure's sprite table

@@ -139,10 +139,11 @@ class ScreensWalk:
         return None
 
     def table_of(self, push):
-        """The table a push "move.l (An)+, -(A7)" or "move.l (An), -(A7)" reads, where An comes from "movea.l
-        #TABLE, An" earlier in the function and only steps on since; or None"""
+        """The table a push "move.l (An)+, -(A7)", "move.l (An), -(A7)" or "move.l (An,Dn.w), -(A7)" reads (the
+        last, an entry by an index: 0F4A8A-0F4A90, 09BC1A), where An comes from "movea.l #TABLE, An" earlier in
+        the function and only steps on since; or None"""
         source = push.operands[0]
-        if push.mnemonic != "move" or source.mode not in ("indirect", "postinc"):
+        if push.mnemonic != "move" or source.mode not in ("indirect", "postinc", "index"):
             return None
         at = self.position_of[push.address]
         function = self.function_of(push.address)
