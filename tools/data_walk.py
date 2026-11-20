@@ -146,6 +146,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.spans_scaled(found)
         self.spans_pointed(found)
         self.spans_in_place(found)
+        self.spans_c2_reads(found)
         self.spans_zeros(found)
         self.spans_unnamed(found)
         return found

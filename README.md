@@ -20,9 +20,10 @@ As of 2026-11-15:
       ymfm's YM2612: it boots, plays every table, makes its music, and measures how much of each frame the game
       takes
 - [x] Control scripts for the four tables (`tests/controls/`): the level select's flag on and the table's
-      button held at the start, then a fixed pattern of flippers and moves
+      button held at the start, then a fixed pattern of flippers and moves; and one through the four bonus
+      stages (`bonus_stages.txt`, run with `--z80-rom-reads` as its frames were found)
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
-      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 17,399 addresses the four scenarios
+      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 25,445 addresses the five scenarios
       execute is found; the 27 functions reached only through data are in `symbols.txt` with how they were found
 - [x] The cartridge's bytes classified: 16.7% code, 81.3% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats

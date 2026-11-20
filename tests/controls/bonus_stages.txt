@@ -1,0 +1,723 @@
+# The four bonus stages from Toxic Caves: the level select's flag poked on as in the tables' scripts (FFF8F8),
+# no button at the start (Toxic Caves), then the tables' fixed pattern of flippers and moves from frame 1000 to
+# the end, in the tables and in the stages alike. 0FA588 is the bonus stage, run whole inside the step that
+# calls it; its argument picks the stage (FF3CBC: 0 -> 1, 1 -> 2, 2 -> 0, 3 -> 3, 0FA59A-0FA5C8). Two steps call it:
+# - mode 3 (FF3CB4, a long: FF3CB7 its low byte), which 0E1CAE sets when a table's multiball object is hit
+#   ("* ENTERING MULTI BALL *") with the count FFF1FA at 78h: when the count runs out 0D5356 runs 0FA588(0).
+#   Poked at 1200 as 0E1CAE sets it: stage 1 (FF3CBC), frames 1350-7025.
+# - mode 6's step 11h (FF55A0, 0D4DB6), with FF41C2 clear and bit 7 of the player's byte at +0C (FF5764) clear
+#   (a drained ball leaves it set, and the step then skips the stage): the player's word at +30 (FF5788, the
+#   table) goes up by one, and while it is under 4 0FA588 runs with it, then 0D3FAC starts the next table.
+#   Poked at 7200 (the table 0: stage 2, frames 7225-12525, then Lava Powerhouse), 12900 (stage 0, 12925-16325,
+#   then The Machine) and 16700 (stage 3, 16725-19250, then Showdown), each in a table's play (mode 2).
+# The frames are those of a run with the Z80 on (--z80-rom-reads), as the tables' scenarios run: without it the
+# 68000 loses no time to the Z80, the stages end at other frames and the pokes fall inside them.
+600 poke FFF8F8 01
+620 press start1
+700 press start1
+780 press start1
+1000 press c1 6
+1040 press a1 6
+1065 press b1 6
+1090 hold left1
+1120 release left1
+1130 press c1 10
+1180 hold right1
+1200 poke FF3CB7 03
+1200 poke FFF1FA 00
+1200 poke FFF1FB 78
+1210 release right1
+1220 press b1 4
+1240 press a1 4
+1260 press c1 6
+1295 press c1 6
+1335 press a1 6
+1360 press b1 6
+1385 hold left1
+1415 release left1
+1425 press c1 10
+1475 hold right1
+1505 release right1
+1515 press b1 4
+1535 press a1 4
+1555 press c1 6
+1590 press c1 6
+1630 press a1 6
+1655 press b1 6
+1680 hold left1
+1710 release left1
+1720 press c1 10
+1770 hold right1
+1800 release right1
+1810 press b1 4
+1830 press a1 4
+1850 press c1 6
+1885 press c1 6
+1925 press a1 6
+1950 press b1 6
+1975 hold left1
+2005 release left1
+2015 press c1 10
+2065 hold right1
+2095 release right1
+2105 press b1 4
+2125 press a1 4
+2145 press c1 6
+2180 press c1 6
+2220 press a1 6
+2245 press b1 6
+2270 hold left1
+2300 release left1
+2310 press c1 10
+2360 hold right1
+2390 release right1
+2400 press b1 4
+2420 press a1 4
+2440 press c1 6
+2475 press c1 6
+2515 press a1 6
+2540 press b1 6
+2565 hold left1
+2595 release left1
+2605 press c1 10
+2655 hold right1
+2685 release right1
+2695 press b1 4
+2715 press a1 4
+2735 press c1 6
+2770 press c1 6
+2810 press a1 6
+2835 press b1 6
+2860 hold left1
+2890 release left1
+2900 press c1 10
+2950 hold right1
+2980 release right1
+2990 press b1 4
+3010 press a1 4
+3030 press c1 6
+3065 press c1 6
+3105 press a1 6
+3130 press b1 6
+3155 hold left1
+3185 release left1
+3195 press c1 10
+3245 hold right1
+3275 release right1
+3285 press b1 4
+3305 press a1 4
+3325 press c1 6
+3360 press c1 6
+3400 press a1 6
+3425 press b1 6
+3450 hold left1
+3480 release left1
+3490 press c1 10
+3540 hold right1
+3570 release right1
+3580 press b1 4
+3600 press a1 4
+3620 press c1 6
+3655 press c1 6
+3695 press a1 6
+3720 press b1 6
+3745 hold left1
+3775 release left1
+3785 press c1 10
+3835 hold right1
+3865 release right1
+3875 press b1 4
+3895 press a1 4
+3915 press c1 6
+3950 press c1 6
+3990 press a1 6
+4015 press b1 6
+4040 hold left1
+4070 release left1
+4080 press c1 10
+4130 hold right1
+4160 release right1
+4170 press b1 4
+4190 press a1 4
+4210 press c1 6
+4245 press c1 6
+4285 press a1 6
+4310 press b1 6
+4335 hold left1
+4365 release left1
+4375 press c1 10
+4425 hold right1
+4455 release right1
+4465 press b1 4
+4485 press a1 4
+4505 press c1 6
+4540 press c1 6
+4580 press a1 6
+4605 press b1 6
+4630 hold left1
+4660 release left1
+4670 press c1 10
+4720 hold right1
+4750 release right1
+4760 press b1 4
+4780 press a1 4
+4800 press c1 6
+4835 press c1 6
+4875 press a1 6
+4900 press b1 6
+4925 hold left1
+4955 release left1
+4965 press c1 10
+5015 hold right1
+5045 release right1
+5055 press b1 4
+5075 press a1 4
+5095 press c1 6
+5130 press c1 6
+5170 press a1 6
+5195 press b1 6
+5220 hold left1
+5250 release left1
+5260 press c1 10
+5310 hold right1
+5340 release right1
+5350 press b1 4
+5370 press a1 4
+5390 press c1 6
+5425 press c1 6
+5465 press a1 6
+5490 press b1 6
+5515 hold left1
+5545 release left1
+5555 press c1 10
+5605 hold right1
+5635 release right1
+5645 press b1 4
+5665 press a1 4
+5685 press c1 6
+5720 press c1 6
+5760 press a1 6
+5785 press b1 6
+5810 hold left1
+5840 release left1
+5850 press c1 10
+5900 hold right1
+5930 release right1
+5940 press b1 4
+5960 press a1 4
+5980 press c1 6
+6015 press c1 6
+6055 press a1 6
+6080 press b1 6
+6105 hold left1
+6135 release left1
+6145 press c1 10
+6195 hold right1
+6225 release right1
+6235 press b1 4
+6255 press a1 4
+6275 press c1 6
+6310 press c1 6
+6350 press a1 6
+6375 press b1 6
+6400 hold left1
+6430 release left1
+6440 press c1 10
+6490 hold right1
+6520 release right1
+6530 press b1 4
+6550 press a1 4
+6570 press c1 6
+6605 press c1 6
+6645 press a1 6
+6670 press b1 6
+6695 hold left1
+6725 release left1
+6735 press c1 10
+6785 hold right1
+6815 release right1
+6825 press b1 4
+6845 press a1 4
+6865 press c1 6
+6900 press c1 6
+6940 press a1 6
+6965 press b1 6
+6990 hold left1
+7020 release left1
+7030 press c1 10
+7080 hold right1
+7110 release right1
+7120 press b1 4
+7140 press a1 4
+7160 press c1 6
+7195 press c1 6
+7200 poke FF3CB7 06
+7200 poke FF55A0 00
+7200 poke FF55A1 11
+7200 poke FF41C2 00
+7235 press a1 6
+7260 press b1 6
+7285 hold left1
+7315 release left1
+7325 press c1 10
+7375 hold right1
+7405 release right1
+7415 press b1 4
+7435 press a1 4
+7455 press c1 6
+7490 press c1 6
+7530 press a1 6
+7555 press b1 6
+7580 hold left1
+7610 release left1
+7620 press c1 10
+7670 hold right1
+7700 release right1
+7710 press b1 4
+7730 press a1 4
+7750 press c1 6
+7785 press c1 6
+7825 press a1 6
+7850 press b1 6
+7875 hold left1
+7905 release left1
+7915 press c1 10
+7965 hold right1
+7995 release right1
+8005 press b1 4
+8025 press a1 4
+8045 press c1 6
+8080 press c1 6
+8120 press a1 6
+8145 press b1 6
+8170 hold left1
+8200 release left1
+8210 press c1 10
+8260 hold right1
+8290 release right1
+8300 press b1 4
+8320 press a1 4
+8340 press c1 6
+8375 press c1 6
+8415 press a1 6
+8440 press b1 6
+8465 hold left1
+8495 release left1
+8505 press c1 10
+8555 hold right1
+8585 release right1
+8595 press b1 4
+8615 press a1 4
+8635 press c1 6
+8670 press c1 6
+8710 press a1 6
+8735 press b1 6
+8760 hold left1
+8790 release left1
+8800 press c1 10
+8850 hold right1
+8880 release right1
+8890 press b1 4
+8910 press a1 4
+8930 press c1 6
+8965 press c1 6
+9005 press a1 6
+9030 press b1 6
+9055 hold left1
+9085 release left1
+9095 press c1 10
+9145 hold right1
+9175 release right1
+9185 press b1 4
+9205 press a1 4
+9225 press c1 6
+9260 press c1 6
+9300 press a1 6
+9325 press b1 6
+9350 hold left1
+9380 release left1
+9390 press c1 10
+9440 hold right1
+9470 release right1
+9480 press b1 4
+9500 press a1 4
+9520 press c1 6
+9555 press c1 6
+9595 press a1 6
+9620 press b1 6
+9645 hold left1
+9675 release left1
+9685 press c1 10
+9735 hold right1
+9765 release right1
+9775 press b1 4
+9795 press a1 4
+9815 press c1 6
+9850 press c1 6
+9890 press a1 6
+9915 press b1 6
+9940 hold left1
+9970 release left1
+9980 press c1 10
+10030 hold right1
+10060 release right1
+10070 press b1 4
+10090 press a1 4
+10110 press c1 6
+10145 press c1 6
+10185 press a1 6
+10210 press b1 6
+10235 hold left1
+10265 release left1
+10275 press c1 10
+10325 hold right1
+10355 release right1
+10365 press b1 4
+10385 press a1 4
+10405 press c1 6
+10440 press c1 6
+10480 press a1 6
+10505 press b1 6
+10530 hold left1
+10560 release left1
+10570 press c1 10
+10620 hold right1
+10650 release right1
+10660 press b1 4
+10680 press a1 4
+10700 press c1 6
+10735 press c1 6
+10775 press a1 6
+10800 press b1 6
+10825 hold left1
+10855 release left1
+10865 press c1 10
+10915 hold right1
+10945 release right1
+10955 press b1 4
+10975 press a1 4
+10995 press c1 6
+11030 press c1 6
+11070 press a1 6
+11095 press b1 6
+11120 hold left1
+11150 release left1
+11160 press c1 10
+11210 hold right1
+11240 release right1
+11250 press b1 4
+11270 press a1 4
+11290 press c1 6
+11325 press c1 6
+11365 press a1 6
+11390 press b1 6
+11415 hold left1
+11445 release left1
+11455 press c1 10
+11505 hold right1
+11535 release right1
+11545 press b1 4
+11565 press a1 4
+11585 press c1 6
+11620 press c1 6
+11660 press a1 6
+11685 press b1 6
+11710 hold left1
+11740 release left1
+11750 press c1 10
+11800 hold right1
+11830 release right1
+11840 press b1 4
+11860 press a1 4
+11880 press c1 6
+11915 press c1 6
+11955 press a1 6
+11980 press b1 6
+12005 hold left1
+12035 release left1
+12045 press c1 10
+12095 hold right1
+12125 release right1
+12135 press b1 4
+12155 press a1 4
+12175 press c1 6
+12210 press c1 6
+12250 press a1 6
+12275 press b1 6
+12300 hold left1
+12330 release left1
+12340 press c1 10
+12390 hold right1
+12420 release right1
+12430 press b1 4
+12450 press a1 4
+12470 press c1 6
+12505 press c1 6
+12545 press a1 6
+12570 press b1 6
+12595 hold left1
+12625 release left1
+12635 press c1 10
+12685 hold right1
+12715 release right1
+12725 press b1 4
+12745 press a1 4
+12765 press c1 6
+12800 press c1 6
+12840 press a1 6
+12865 press b1 6
+12890 hold left1
+12900 poke FF3CB7 06
+12900 poke FF55A0 00
+12900 poke FF55A1 11
+12900 poke FF41C2 00
+12920 release left1
+12930 press c1 10
+12980 hold right1
+13010 release right1
+13020 press b1 4
+13040 press a1 4
+13060 press c1 6
+13095 press c1 6
+13135 press a1 6
+13160 press b1 6
+13185 hold left1
+13215 release left1
+13225 press c1 10
+13275 hold right1
+13305 release right1
+13315 press b1 4
+13335 press a1 4
+13355 press c1 6
+13390 press c1 6
+13430 press a1 6
+13455 press b1 6
+13480 hold left1
+13510 release left1
+13520 press c1 10
+13570 hold right1
+13600 release right1
+13610 press b1 4
+13630 press a1 4
+13650 press c1 6
+13685 press c1 6
+13725 press a1 6
+13750 press b1 6
+13775 hold left1
+13805 release left1
+13815 press c1 10
+13865 hold right1
+13895 release right1
+13905 press b1 4
+13925 press a1 4
+13945 press c1 6
+13980 press c1 6
+14020 press a1 6
+14045 press b1 6
+14070 hold left1
+14100 release left1
+14110 press c1 10
+14160 hold right1
+14190 release right1
+14200 press b1 4
+14220 press a1 4
+14240 press c1 6
+14275 press c1 6
+14315 press a1 6
+14340 press b1 6
+14365 hold left1
+14395 release left1
+14405 press c1 10
+14455 hold right1
+14485 release right1
+14495 press b1 4
+14515 press a1 4
+14535 press c1 6
+14570 press c1 6
+14610 press a1 6
+14635 press b1 6
+14660 hold left1
+14690 release left1
+14700 press c1 10
+14750 hold right1
+14780 release right1
+14790 press b1 4
+14810 press a1 4
+14830 press c1 6
+14865 press c1 6
+14905 press a1 6
+14930 press b1 6
+14955 hold left1
+14985 release left1
+14995 press c1 10
+15045 hold right1
+15075 release right1
+15085 press b1 4
+15105 press a1 4
+15125 press c1 6
+15160 press c1 6
+15200 press a1 6
+15225 press b1 6
+15250 hold left1
+15280 release left1
+15290 press c1 10
+15340 hold right1
+15370 release right1
+15380 press b1 4
+15400 press a1 4
+15420 press c1 6
+15455 press c1 6
+15495 press a1 6
+15520 press b1 6
+15545 hold left1
+15575 release left1
+15585 press c1 10
+15635 hold right1
+15665 release right1
+15675 press b1 4
+15695 press a1 4
+15715 press c1 6
+15750 press c1 6
+15790 press a1 6
+15815 press b1 6
+15840 hold left1
+15870 release left1
+15880 press c1 10
+15930 hold right1
+15960 release right1
+15970 press b1 4
+15990 press a1 4
+16010 press c1 6
+16045 press c1 6
+16085 press a1 6
+16110 press b1 6
+16135 hold left1
+16165 release left1
+16175 press c1 10
+16225 hold right1
+16255 release right1
+16265 press b1 4
+16285 press a1 4
+16305 press c1 6
+16340 press c1 6
+16380 press a1 6
+16405 press b1 6
+16430 hold left1
+16460 release left1
+16470 press c1 10
+16520 hold right1
+16550 release right1
+16560 press b1 4
+16580 press a1 4
+16600 press c1 6
+16635 press c1 6
+16675 press a1 6
+16700 poke FF3CB7 06
+16700 poke FF55A0 00
+16700 poke FF55A1 11
+16700 poke FF41C2 00
+16700 press b1 6
+16725 hold left1
+16755 release left1
+16765 press c1 10
+16815 hold right1
+16845 release right1
+16855 press b1 4
+16875 press a1 4
+16895 press c1 6
+16930 press c1 6
+16970 press a1 6
+16995 press b1 6
+17020 hold left1
+17050 release left1
+17060 press c1 10
+17110 hold right1
+17140 release right1
+17150 press b1 4
+17170 press a1 4
+17190 press c1 6
+17225 press c1 6
+17265 press a1 6
+17290 press b1 6
+17315 hold left1
+17345 release left1
+17355 press c1 10
+17405 hold right1
+17435 release right1
+17445 press b1 4
+17465 press a1 4
+17485 press c1 6
+17520 press c1 6
+17560 press a1 6
+17585 press b1 6
+17610 hold left1
+17640 release left1
+17650 press c1 10
+17700 hold right1
+17730 release right1
+17740 press b1 4
+17760 press a1 4
+17780 press c1 6
+17815 press c1 6
+17855 press a1 6
+17880 press b1 6
+17905 hold left1
+17935 release left1
+17945 press c1 10
+17995 hold right1
+18025 release right1
+18035 press b1 4
+18055 press a1 4
+18075 press c1 6
+18110 press c1 6
+18150 press a1 6
+18175 press b1 6
+18200 hold left1
+18230 release left1
+18240 press c1 10
+18290 hold right1
+18320 release right1
+18330 press b1 4
+18350 press a1 4
+18370 press c1 6
+18405 press c1 6
+18445 press a1 6
+18470 press b1 6
+18495 hold left1
+18525 release left1
+18535 press c1 10
+18585 hold right1
+18615 release right1
+18625 press b1 4
+18645 press a1 4
+18665 press c1 6
+18700 press c1 6
+18740 press a1 6
+18765 press b1 6
+18790 hold left1
+18820 release left1
+18830 press c1 10
+18880 hold right1
+18910 release right1
+18920 press b1 4
+18940 press a1 4
+18960 press c1 6
+18995 press c1 6
+19035 press a1 6
+19060 press b1 6
+19085 hold left1
+19115 release left1
+19125 press c1 10
+19175 hold right1
+19205 release right1
+19215 press b1 4
+19235 press a1 4
+19255 press c1 6
+19290 press c1 6
+19330 press a1 6
+19355 press b1 6
+19380 hold left1
+19410 release left1
+19420 press c1 10
+19470 hold right1
+19500 end

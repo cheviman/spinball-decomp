@@ -4,7 +4,7 @@ Description: Sonic the Hedgehog Spinball's graphics, walked from where the code 
              the loaders get, the palettes and their colour cycles (for tools/data_walk.py)
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    19-11-2026
 Author:      Sebastian Toyos
 
   tiles          what the code hands to the functions that load tiles into the VRAM (tools/spinball_compression.py),
@@ -16,8 +16,10 @@ Author:      Sebastian Toyos
                  a place of the window not written yet, or do not give as many as their word says, are no tiles.
                  Tiles of an odd size are followed by FF, to even the place after them. The C2 decoder reads the
                  masks of the codes' widths at 09BCD2 (four words: the fourth, FFF, is never read), and a code as
-                 the three bytes from the one its first bit is in: two bytes past the end, which belong to what
-                 follows.
+                 the three bytes from the one its first bit is in (0F5ABA-0F5AC6): the end code's reach up to two
+                 bytes past the one its last bit is in. Those are the tiles' when nothing starts there (the byte
+                 of 0 after five of the bonus stage's six sets, which the decoder reads in the scenarios), and
+                 what follows when something does (0A3124's: 0A8816, a value read in place).
   palettes       from 000DFC, 32 bytes each (tools/spinball_graphics.py), up to the next place the code hands over
                  (the sprites at 0013DC: 47); before them, the gaps of the shell sort at 0FE3AE (40, 13, 4, 1).
   cycles         the tables the core's analysis bounds by a counter that wraps ("cmpi.w #N, COUNTER; blt; clr.w
@@ -51,6 +53,7 @@ class GraphicsWalk:
 
     def init_graphics(self):
         self.tilesets = {}              # {address: (kind, size in bytes, how it was found)}
+        self.tileset_reads = {}         # {address: where the decoder's reads stop}: C2 tiles
         self.tileset_tables = {}        # {address: how it was found}: tables of four tilesets, a level each
         self.palettes = 0               # how many palettes from PALETTES
         self.sort_gaps = 0              # how many words from SORT_GAPS
@@ -84,6 +87,7 @@ class GraphicsWalk:
             if result.codes[0] != compression.C2_RESTART or result.most_entries > compression.C2_LAST_ENTRY + 1:
                 raise SystemExit(f"{address:06X} ({found}): no C2 tiles")
             kind, size = ("C2 tiles after a word" if kind == "word" else "C2 tiles"), start - address + result.size
+            self.tileset_reads[address] = start + result.read_size
         if (address + size) & 1 and image[address + size] == TILESET_PAD:
             size += 1
         self.tilesets[address] = (kind, size, found)
@@ -120,6 +124,17 @@ class GraphicsWalk:
             found[first] = (first + graphics.PALETTE_BYTES, "palette")
         if self.sort_gaps:
             found[SORT_GAPS] = (SORT_GAPS + 2 * self.sort_gaps, "sort gaps")
+
+    def spans_c2_reads(self, found):
+        """The bytes past C2 tiles the decoder reads with the end code, where nothing else starts (before the zeros
+        that fill out a record take what is left)"""
+        starts = set(found) | set(self.anchors) | set(self.analysis.instructions) \
+            | {first for first, _ in self.analysis.described}
+        for address, stop in self.tileset_reads.items():
+            end, kind = found[address]
+            while end < stop and end not in starts:
+                end += 1
+            found[address] = (end, kind)
 
     def spans_c2_masks(self, found):
         if any(kind.startswith("C2") for kind, _, _ in self.tilesets.values()):

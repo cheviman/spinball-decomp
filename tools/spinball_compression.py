@@ -4,7 +4,7 @@ Description: Sonic the Hedgehog Spinball's two compressions, read as the game re
              LZW); and their encoders, which give the cartridge's bytes back
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    19-11-2026
 Author:      Sebastian Toyos
 
 SSC, as 0D6B88 reads it (its arguments: the data, and the 8x8 tile of the VRAM it goes to, 32 bytes a tile):
@@ -102,6 +102,7 @@ class C2Result:
     def __init__(self):
         self.data = bytearray()
         self.size = 0               # the compressed bytes: up to the one the end code's last bit is in
+        self.read_size = 0          # the bytes the decoder reads: up to the third of the end code's (0F5ABA-0F5AC6)
         self.codes = []             # the codes as read, for the encoders' check
         self.restarts = 0
         self.most_entries = 0       # the highest next entry the dictionary reached
@@ -122,6 +123,7 @@ def c2_decode(image, address):
         nonlocal bit
         offset = bit >> 3
         value = image[address + offset] | image[address + offset + 1] << 8 | image[address + offset + 2] << 16
+        result.read_size = offset + 3
         code = (value >> (bit & 7)) & masks[width_index]
         bit += C2_WIDTHS[width_index][1]
         result.codes.append(code)
