@@ -53,8 +53,11 @@ As of 2026-11-20:
 - [ ] The data with names and types, and the assets as editable files that build back byte for byte: sprites
       and tilesets as PNG (raw, SSC and LZW), levels, collision splines, objects, animations, palettes, texts,
       the GEMS music and samples
+- [x] The translation scaffold: the program translated into C an instruction at a time (`tools/recompile.py`),
+      running on console-decomp's Mega Drive with frame timing (`spinball_headless`): the 18 scenarios give
+      the reference's state hashes frame by frame (`tools/check_scenarios.py --translated`)
 - [ ] The decompiled C, checked frame by frame (state, picture, sound) against the reference
-- [ ] The game in a window on Windows (SDL), built from the decompiled C
+- [ ] The game in a window on Windows (SDL3), built from the decompiled C
 
 ## Getting started
 

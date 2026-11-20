@@ -4,7 +4,7 @@ Description: what the shared decompiler core (tools/core) needs to know of Sonic
              the game is, its cartridge, and its settings
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    20-11-2026
 Author:      Sebastian Toyos
 
 The core (arcade-decomp: the decompiler, the CPU frontends, the analysis, the checks) is the same for every
@@ -41,3 +41,21 @@ READERS = {                                     # the code that reads each kind 
                        (0x0DE08E, 0x0DE774), (0x0E1D10, 0x0E1ECA)],
     "palette code": [(0x0D6C2A, 0x0D7AB8), (0x0D85A0, 0x0D85F4), (0x0D863E, 0x0D8674), (0x0D873A, 0x0D8BB6)],
 }
+
+# The translation scaffold (tools/recompile.py: the core's m68000/translate.py), the program translated an
+# instruction at a time
+TRANSLATOR = "m68000.translate"
+# where the program waits for its next frame: the branches back of the loops that only read and test until an
+# interrupt changes what they read (tools/frame_waits.py finds them by that rule and checks this list and
+# runtime/src/frame.c's): the VBLANK's frame count at FF0000 (the main loop's 0D54C2, the demo's 0D47B6, 0D3E0C,
+# 0D3E20), the front end's VBLANK clearing FFF2C9 (0F38CE), the VBLANK serving the requests at FF559E and the palette's
+# command at FF0058, the Z80's bus, the boot; and 0D48E2's state machine, which goes round (0D4EE0) while its state
+# waits for the timer the VBLANK counts down (runtime/src/frame.c says when). The program has nothing to do when it
+# takes one: with frame timing the board moves on to its next frame there
+FRAME_WAIT = (0x00024C, 0x0D3E0C, 0x0D3E20, 0x0D41DA, 0x0D4328, 0x0D47B6, 0x0D54C2, 0x0D84D6, 0x0D86C4,
+              0x0D86E2, 0x0D86FE, 0x0D871A, 0x0D8736, 0x0F38CE, 0x0F5FBC, 0x0F600E, 0x0F60B6, 0x0FF59C, 0x0FF7DA, 0x0FF808,
+              0x0D4EE0)
+REPLACED_CODE = {}
+# the reference runs the program as the translated and the decompiled game run it when the scenarios compare them
+# (tools/check_scenarios.py: mdref --timing frames, md/frames.h)
+REFERENCE_OPTIONS = ["--timing", "frames"]                              # the console runs the whole program: nothing in its place

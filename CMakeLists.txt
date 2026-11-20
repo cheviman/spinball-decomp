@@ -2,7 +2,7 @@
 # Description: build of Sonic the Hedgehog Spinball's runtime and its development tools
 # Version:     0.1.0
 # Created:     13-11-2026
-# Modified:    13-11-2026
+# Modified:    20-11-2026
 # Author:      Sebastian Toyos
 cmake_minimum_required(VERSION 3.20)
 project(spinball C CXX)
@@ -34,6 +34,19 @@ add_library(spinball_rom_set STATIC runtime/src/rom_set.c)
 target_include_directories(spinball_rom_set PUBLIC runtime/include)
 target_link_libraries(spinball_rom_set PUBLIC md_cartridge)
 
+# Where the program waits for its next frame (md/frames.h): the console's frame timing, for the program and
+# for mdref
+add_library(spinball_frame STATIC runtime/src/frame.c)
+target_link_libraries(spinball_frame PUBLIC md_runtime)
+
+# The translation scaffold (spinball_headless): the program tools/recompile.py translates from the user's
+# cartridge into build/generated, an instruction at a time, on the console's runtime. It runs the cartridge
+# the player has (rom/), as mdref does: what it reads of it as data is the cartridge's until the decompiled C
+option(SPINBALL_SCAFFOLD "Build the 68000 translation scaffold (spinball_headless)" ON)
+if(SPINBALL_SCAFFOLD)
+	md_translated_program(spinball ${CMAKE_SOURCE_DIR}/build/generated spinball_rom_set spinball_frame)
+endif()
+
 find_package(Python3 COMPONENTS Interpreter)
 
 # The reference tools: the original program on MAME's cores (tools/console/megadrive/reference)
@@ -42,6 +55,6 @@ if(SPINBALL_REFERENCE_TOOLS)
 	if(NOT Python3_FOUND)
 		message(FATAL_ERROR "The reference tools need Python 3 (MAME's 68000 and Z80 cores are written by Python scripts)")
 	endif()
-	set(MD_GAME_DATA spinball_rom_set)
+	set(MD_GAME_DATA spinball_rom_set spinball_frame)
 	include(${MD_CONSOLE}/reference/reference.cmake)
 endif()
