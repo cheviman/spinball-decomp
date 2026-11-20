@@ -27,10 +27,11 @@ As of 2026-11-20:
       turns (`players.txt`); and five through the rest of a game: the multiball reached and played
       (`multiball.txt`: the rings poked one short, then flippers a search on the reference found), that game to the
       top of the high scores (`high_scores.txt`), the four boss chambers destroyed with mode 4 poked (`bosses.txt`),
-      a continue won and used (`continues.txt`), and the ending and the credits after Showdown (`ending.txt`); all
+      a continue won and used (`continues.txt`), and the ending and the credits after Showdown (`ending.txt`); and
+      the four tables played, the ball kept in play by flippers a search on the reference found (`*_played.txt`); all
       run with `--z80-rom-reads`, as their frames were found
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
-      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 29,967 addresses the fourteen scenarios
+      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 33,006 addresses the eighteen scenarios
       execute is found; the 27 functions reached only through data are in `symbols.txt` with how they were found
 - [x] The cartridge's bytes classified: 16.7% code, 81.3% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats

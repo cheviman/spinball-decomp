@@ -1,0 +1,115 @@
+# Toxic Caves played: the title with nothing held (Toxic Caves), the ball started with the first 386 bytes of the
+# demo's controls at 952 (as game_over.txt), then flippers from 1560 on (A left, B right, C both, the default
+# buttons) found by a search on the reference: 32 tries of random presses every 120 frames, keeping the one that
+# leaves the ball in play with the highest score, going back a step when none does. At 6720 the first ball is still
+# in play, at 1,970,000, Sonic in the boat (the player's byte at +0C at 43h), which keeps him while nothing is
+# pressed: multiball.txt and high_scores.txt play the same table with the rings poked.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press start1
+780 press start1
+952 hold up1
+952 hold right1
+1058 release up1
+1062 release right1
+1159 hold left1
+1200 release left1
+1215 hold c1
+1276 release c1
+1323 hold c1
+1434 release c1
+1483 hold c1
+1545 release c1
+1640 press c1 6
+1692 press a1 6
+1708 press a1 6
+1718 press b1 8
+1731 press a1 7
+1839 press c1 8
+1891 press c1 8
+1900 press c1 4
+2049 press c1 9
+2064 press c1 14
+2097 press c1 11
+2254 press c1 11
+2293 press c1 5
+2462 press c1 4
+2490 press b1 8
+2532 press c1 14
+2641 press c1 4
+2721 press c1 4
+2722 press c1 11
+2724 press c1 9
+2824 press c1 11
+2840 press c1 8
+2887 press c1 3
+2947 press c1 14
+2962 press b1 8
+2973 press c1 3
+3041 press b1 10
+3050 press b1 11
+3075 press c1 5
+3082 press a1 12
+3142 press b1 11
+3146 press a1 8
+3193 press c1 12
+3221 press c1 13
+3269 press c1 9
+3294 press c1 4
+3295 press b1 4
+3347 press c1 3
+3387 press c1 8
+3406 press a1 7
+3466 press a1 4
+3514 press a1 7
+3517 press c1 5
+3609 press b1 8
+3627 press c1 7
+3659 press c1 14
+3844 press c1 12
+3885 press c1 14
+3891 press c1 4
+3978 press b1 14
+4022 press b1 8
+4080 press c1 6
+4161 press c1 11
+4170 press c1 7
+4231 press a1 14
+4237 press c1 14
+4458 press c1 12
+4486 press b1 12
+4642 press a1 9
+4688 press b1 12
+4754 press c1 7
+4763 press b1 5
+4767 press c1 13
+4810 press b1 11
+4838 press b1 11
+4881 press a1 8
+4889 press b1 5
+4924 press c1 4
+4940 press c1 14
+4987 press c1 7
+5000 press c1 7
+5083 press c1 12
+5182 press a1 11
+5205 press a1 10
+5239 press c1 7
+5359 press a1 9
+5402 press c1 9
+5430 press c1 7
+5651 press b1 11
+5693 press b1 11
+5712 press c1 11
+5740 press c1 14
+5764 press a1 9
+5824 press a1 5
+5863 press c1 13
+5888 press c1 6
+6246 press a1 13
+6270 press b1 7
+6279 press c1 8
+6542 press c1 11
+6556 press c1 6
+6653 press c1 5
+6720 end
