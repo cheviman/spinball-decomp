@@ -109,6 +109,7 @@ class Walk(CodePatterns, AnimationWalk, GraphicsWalk, LevelsWalk, TextsWalk, Scr
         self.walk_segment_tables()
         self.walk_demo()
         self.walk_box_lists()
+        self.walk_box_tables()
         self.walk_texts()
         self.walk_region_lock()
         self.walk_screens()

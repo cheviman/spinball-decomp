@@ -65,6 +65,10 @@ Author:      Sebastian Toyos
   boxes' lists   what 0E738C gets with the object it tests (its third and fourth arguments, "pea LIST.l" and "pea
                  COUNT.w": 0E6F00-0E6F0E): COUNT longs, each the address of a box of four words the object's
                  place is added to (0E73BA, 0E73CE-0E741C). The 4 bytes of 0 after each box no code reads.
+  boxes' tables  the boxes 0DB900 tests an object against, one at a time from a table of their addresses a loop
+                 walks (0E6E36-0E6E6E: "movea.l #TABLE, A0; movea.l (A0,D0.w), A3", A3 its first argument, "cmpi.w
+                 #6, D2" the count): 12 bytes each, which 0DB900 copies whole (0DB9DC-0DB9E0), four words first
+                 (0DBD4C-0DBD58). The 6 at 0C3226, boxes 0C313A-0C3181.
   demo           the controls the demo plays (0D4722, "movea.l #SCRIPT, A2", the only address the function loads
                  A2 with), a byte at a time (DEMO_READ, 0D4770): FF ends it (0D4772-0D4776); a byte over 7F is how
                  many frames, less 80h, the next byte's buttons are held (0D4778-0D4788); any other, the buttons
@@ -97,6 +101,8 @@ HALF_MAP = (20, 28)                 # a half map's words a row and its rows (0FA
 BOXES_TESTER = 0x0E738C             # tests an object against a list of boxes
 BOX_SIZE = 8
 BOXES_WALKED = 12                   # how far back from the call a list's load into a register is looked for
+BOX_CHOOSER = 0x0DB900              # tests an object against a box (its first argument) and copies the box whole
+CHOSEN_BOX = 12                     # what it copies: three longs (0DB9DC-0DB9E0), the four words 0DBD1E reads first
 DEMO_READ = 0x0D4770                # where the demo reads a byte of its controls, "move.b (A2)+, D3"
 SEGMENTS_READER = 0x0F9656
 SEGMENT_TABLES = {                  # the tables it reads: a record's bytes, its records, what they are
@@ -133,6 +139,8 @@ class LevelsWalk:
         self.demo_controls = {}         # {address: (size, how it was found)}
         self.box_lists = {}             # {address: (boxes, how it was found)}
         self.list_boxes = {}            # {address: how it was found}
+        self.box_tables = {}            # {address: (boxes, how it was found)}: the boxes BOX_CHOOSER is handed
+        self.chosen_boxes = {}          # {address: how it was found}
 
     def walk_box_lists(self):
         for position, (address, instruction) in enumerate(self.ordered):
@@ -154,6 +162,48 @@ class LevelsWalk:
                 raise SystemExit(f"{address:06X}: the list of boxes {BOXES_TESTER:06X} gets, or its count, is not "
                                  f"an address and a number")
             self.add_box_list(lists[0], counts[0], f"passed to {BOXES_TESTER:06X} at {address:06X}")
+
+    def walk_box_tables(self):
+        """The boxes BOX_CHOOSER gets, from a table of their addresses a loop walks: "movea.l #TABLE, A0; movea.l
+        (A0,D0.w), A3" before the call hands it A3, and "cmpi.w #COUNT, D2" and a branch back after it close the
+        loop (0E6E36-0E6E6E: the 6 at 0C3226)"""
+        for position, (address, instruction) in enumerate(self.ordered):
+            if instruction.flow != "call" or self.call_target(position) != BOX_CHOOSER:
+                continue
+            pushed = self.pushes(position, 0) or ()
+            sources = {push.operands[0].reg for push in pushed if push.operands[0].mode == "areg"}
+            if len(sources) != 1:
+                continue        # a box from elsewhere: no table to walk
+            box, table, entry = sources.pop(), None, None
+            for at in range(position - 1, max(position - BOXES_WALKED, 0), -1):
+                step = self.ordered[at][1]
+                operands = step.operands
+                if entry is None and step.mnemonic == "movea" and step.size == "l" and operands[0].mode == "index" \
+                        and operands[1].reg == box:
+                    entry = operands[0].reg
+                elif entry is not None and step.mnemonic == "movea" and operands[0].mode == "immediate" \
+                        and operands[1].reg == entry:
+                    table = (operands[0].value & 0xFFFFFF, at)
+                    break
+            if table is None:
+                continue        # an object's box, or one a caller hands on (0DC59A): what reaches it is elsewhere
+            first, loaded = table
+            for at in range(position + 1, min(position + BOXES_WALKED, len(self.ordered) - 1)):
+                step, after = self.ordered[at][1], self.ordered[at + 1][1]
+                if step.mnemonic == "cmpi" and step.operands[0].mode == "immediate" and after.flow == "branch" \
+                        and after.target <= self.ordered[loaded][0]:
+                    count = step.operands[0].value
+                    break
+            else:
+                raise SystemExit(f"{address:06X}: no loop's count bounds the table {first:06X}")
+            found = f"loaded at {self.ordered[loaded][0]:06X}, its entries passed to {BOX_CHOOSER:06X} at " \
+                    f"{address:06X}, {count} by the loop's count at {self.ordered[at][0]:06X}"
+            self.box_tables[first] = (count, found)
+            for index in range(count):
+                place = long_at(self.image, first + 4 * index)
+                if place & 1 or place + CHOSEN_BOX > len(self.image):
+                    raise SystemExit(f"{first:06X}: its entry {index} is no box ({place:06X}; {found})")
+                self.chosen_boxes.setdefault(place, f"entry {index} of the table {first:06X}")
 
     def add_box_list(self, boxes, count, found):
         self.box_lists[boxes] = (count, found)
@@ -377,6 +427,10 @@ class LevelsWalk:
             found[address] = (address + 4 * boxes, "boxes' list")
         for address in self.list_boxes:
             found.setdefault(address, (address + BOX_SIZE, "box of a list"))
+        for address, (boxes, _) in self.box_tables.items():
+            found[address] = (address + 4 * boxes, "boxes' table")
+        for address in self.chosen_boxes:
+            found.setdefault(address, (address + CHOSEN_BOX, "box chosen among a table's"))
         for address, (stop, kind, _) in self.segment_tables.items():
             found[address] = (stop, kind)
         for address, (width, rows, _) in self.half_maps.items():

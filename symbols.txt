@@ -107,7 +107,15 @@
 0F4430  func  vblank_task_0F4430
 # functions nothing calls: bytes between two functions that decode as instructions from their start to a
 # return, which no call, no jump and no table of the cartridge reaches (tools/coverage.py listed them as
-# unknown runs that decode whole, each after a return or a table and ending in one); no scenario runs them
+# unknown runs that decode whole, each after a return or a table and ending in one); no scenario runs them.
+# Read one at a time (all 47, with the ones below): each is a whole function or an entry that runs on into the
+# next, and no instruction and no long of the cartridge outside code holds its address, but 0F6012's, which
+# 0F5FF6 and 0F627A call from inside two of them (0F5FE4, 0F6260). What some do: 0D3E10 waits until FF0000 has
+# counted its argument on, 0D3E24 the same or until FF0005 is set; 0D67F2 and 0D67FC multiply two words, like
+# 0D67E8 (unsigned; signed, then +2000h, times 4, the high word); 0D6888 and 0D68B2 copy bytes and words, from
+# the end where the source is below the destination; 0D6ACC divides and returns the remainder; 0F39F4 sets the
+# VDP's register 15 (the auto-increment); 0F5FA6 sets A01B20 with the Z80's bus held and waits until A01B21 is 0;
+# 0F61B6-0F6282 send GEMS a command (below)
 0D3E10  func  uncalled_0D3E10
 0D67F2  func  uncalled_0D67F2
 0D6888  func  uncalled_0D6888
@@ -127,7 +135,7 @@
 0F6ACA  func  uncalled_0F6ACA
 # code no jump reaches: GEMS's calls the game does not use (0F617C, 0F61AE-0F628B: each a "jsr $f6088; moveq
 # #COMMAND, D0; bra $f6164" like 0F615E and 0F6174, or a function of its own), the entries of the long
-# multiply's and divides' that take a pointer (0FF8B6, 0FF8E2, 0FF91E, 0FF982: "move.l (A0), D1" and on into
+# multiply's and divides' that take a pointer (0FF8B6, 0FF8E2, 0FF91E, 0FF982, 0FF99E: "move.l (A0), D1" and on into
 # the function), 0D68DE, a "stop" and a "rts" at 0D3E68 and 0D3E6E, and the end of the function at 0D527A
 # after the jump that closes its loop (0D54C8)
 0D54C8  code  unreached_0D54C8

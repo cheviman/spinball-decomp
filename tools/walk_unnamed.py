@@ -22,7 +22,8 @@ the word at +8 of a box read by 0E5EBA).
   definition       between two definitions, a multiple of their 12 bytes (0C0B38, 0C0C64, 0C0CC4, 0C103C, 0C1228,
                    0C1384)
   boxes            after a box, the rest of its 12 bytes and then whole records of 12: the 2 bytes after an
-                   object's box of 10 (0C4796, a box), the long after a list's box of 8 (0C3136, 6)
+                   object's box of 10 (0C4796, a box); the six after a list's box at 0C3136 were taken for these
+                   until the walk followed the table at 0C3226 that hands them to 0DB900 (walk_levels.py)
   sprite group     beside a sprite group, a group by its own count: 2 bytes and 6 a sprite (099EC0)
 """
 from walk_sequences import GROUP_ENTRY, GROUP_HEAD
