@@ -57,54 +57,70 @@
 
 # ======== functions reached only through data ========
 
-# the front end's sequencer (0F454A) runs scripts of commands; one of them calls a function whose address is in
-# the script itself (0F47E2 "movea.l (A4)+, A0", 0F47E4 "jsr (A0)"; mdref --jumps: 0F47E4 -> 0F3B3E, 0F49B8,
-# 0F4AE4, from the title screen on). Their names wait for the scripts' format.
-0F3B3E  func  sequence_call_0F3B3E
-0F49B8  func  sequence_call_0F49B8
-0F4AE4  func  sequence_call_0F4AE4
-# the same sequencer's call at 0F47E4 reaches this one too (mdref --jumps, The Machine's and Showdown's runs)
-0F3676  func  sequence_call_0F3676
-# the rest of the functions the scripts call (their command 11: tools/walk_sequences.py walks the scripts from where
-# the code passes them to 0F4538 and lists the ones the analysis cannot see), each right after an rts. The script
-# commands that call each: 0F376A 09ADE4; 0F3774 09AE0A; 0F48FE 09A662; 0F4928 09A670; 0F4C36 09A7F2; 0F4D2A
-# 09A830; 0F4DFE 09A6AC; 0F4F2A 09A6C0; 0F504A 09AE74; 0F5122 09AE90; 0F52EC 09AEB4; 0F5D02 09B44C; 0F5E0E 09BBE0.
-# Their names wait for what they do.
-0F376A  func  sequence_call_0F376A
-0F3774  func  sequence_call_0F3774
-0F48FE  func  sequence_call_0F48FE
-0F4928  func  sequence_call_0F4928
-0F4C36  func  sequence_call_0F4C36
-0F4D2A  func  sequence_call_0F4D2A
-0F4DFE  func  sequence_call_0F4DFE
-0F4F2A  func  sequence_call_0F4F2A
-0F504A  func  sequence_call_0F504A
-0F5122  func  sequence_call_0F5122
-0F52EC  func  sequence_call_0F52EC
-0F5D02  func  sequence_call_0F5D02
-0F5E0E  func  sequence_call_0F5E0E
+# the front end's sequencer (0F454A) runs scripts of commands; one of them, command 11, calls a function whose
+# address is in the script itself (0F47E2 "movea.l (A4)+, A0", 0F47E4 "jsr (A0)"; mdref --jumps: 0F47E4 -> 0F3B3E,
+# 0F49B8, 0F4AE4, 0F3676; tools/walk_sequences.py walks the scripts from where the code passes them to 0F4538 and
+# lists the rest, each right after an rts). Each is named by what it does and by the picture where it first runs
+# (mdref --calls over the frames of tests/controls/attract.txt and ending.txt): the script 09B0DA (0F260E) is the
+# SEGA logo the plane flies over, 09A58A (0F2E1C) the intro, 09B430 and 09B75C (0F5C7C) the ending's stars.
+# The SEGA logo: 0F49B8 makes 12 sprites with 0F40BE (frame 109), the plane's trail of sparkles, which 0F4AE4
+# moves (from 111); 0F3B3E reads words of the VRAM and writes them back, by its arguments (from 154).
+0F49B8  func  sega_logo_make_sparkles
+0F4AE4  func  sega_logo_move_sparkles
+0F3B3E  func  copy_vram_words
+# The intro: 0F3676 (1239, when the sea comes in) and 0F48FE and 0F4928 (1392-1471, the fortress sliding in) read,
+# step and write back the 176 longs at FF58D4 (through 0F3F7E and 0F3EB8); 0F4DFE makes the 5 green shots the
+# fortress fires (1471) and 0F4F2A moves them; 0F4C36 makes the 6 sprites of their burst on the plane (1604) and
+# 0F4D2A moves them; 0F376A sets FF02C4, the row 0F3774 draws from 0993A8 and 0993B0 (0F3C06) at each call,
+# then one less, as the water rises over the screen (1733-1820); 0F504A makes 8 sprites at the water's edge
+# (1752) and 0F5122 moves them; 0F52EC reads 16 colours from the VDP (0F3AA4) and writes them toward one in
+# steps (0F3AE0), the deep water's blue (1925).
+0F3676  func  intro_scroll_sea
+0F48FE  func  intro_read_scroll
+0F4928  func  intro_scroll_fortress_in
+0F4DFE  func  intro_make_shots
+0F4F2A  func  intro_move_shots
+0F4C36  func  intro_make_shot_burst
+0F4D2A  func  intro_move_shot_burst
+0F376A  func  intro_set_water_rows
+0F3774  func  intro_raise_water
+0F504A  func  intro_make_water_edge
+0F5122  func  intro_move_water_edge
+0F52EC  func  intro_fade_to_deep_water
+# The ending: 0F5D02 moves the 40 stars at FF58D4 and makes again the ones that leave the screen (2426); 0F5E0E
+# fades the 64 colours out over 31 steps while it moves them (3205-3260)
+0F5D02  func  ending_move_stars
+0F5E0E  func  ending_fade_out_stars
 
 # the functions animations call (their command 10: the step's long; tools/data_walk.py finds them and lists the ones
 # the analysis cannot see, which go here). The step that calls each: 07F24E 0D617A, 039314 0D6194, 039326 0D61AC,
-# 03931A 0D61B8, 039292 0D61C4, 09904A 0D61D2, 000A94 0E2F94. Their names wait for what they do.
-0D617A  func  animation_call_0D617A
-0D6194  func  animation_call_0D6194
-0D61AC  func  animation_call_0D61AC
-0D61B8  func  animation_call_0D61B8
-0D61C4  func  animation_call_0D61C4
-0D61D2  func  animation_call_0D61D2
-0E2F94  func  animation_call_0E2F94
+# 03931A 0D61B8, 039292 0D61C4, 09904A 0D61D2, 000A94 0E2F94. On the animated object: 0D617A sets its width and
+# height (fields 36 and 38, 20h when made: 0D5FE2; what 0D6606-0D662A checks it on screen with) from its bytes 30
+# and 31 (variables 42 and 43); 0D6194 copies byte 30 to its byte 28 and to the word at +6 of what field 3A points
+# at; 0D61AC, 0D61B8 and 0D61C4 set, clear and flip field 22 bit 14, which mirrors its frames (0D59CE-0D59DE);
+# 0D61D2 clears its frame time and count (fields 2B and 2A) when its bytes 2F and 30 are equal; 0E2F94 puts the
+# current player (FF5758 + 76 x FF5736, through 0DBF62) at its x and 12 above its y
+0D617A  func  animation_set_size
+0D6194  func  animation_store_byte_30
+0D61AC  func  animation_mirror
+0D61B8  func  animation_unmirror
+0D61C4  func  animation_flip_mirror
+0D61D2  func  animation_end_wait_when_equal
+0E2F94  func  animation_place_player
 
-# 0F3676 calls the function its caller hands it in A5 (0F3694 "jsr (A5)"; mdref --jumps: 0F3694 -> 0F3F7E)
-0F3F7E  func  sequence_task_0F3F7E
+# 0F3676 calls the function its caller hands it in A5 (0F3694 "jsr (A5)"; mdref --jumps: 0F3694 -> 0F3F7E): it
+# reads the scroll table from the VRAM at FC00 (0F3910) into its argument, the count from 0F3810
+0F3F7E  func  read_scroll_table
 
 # the VBLANK interrupt's tail (0F62B8) runs a list of tasks from FFF872: each node holds the next node's address,
 # then the code to run (0F62D2 "movea.l D0, A5", 0F62D4 "jsr (4,A5)"), which 0F439C and 0F43BC put there when they
-# add a node; mdref --jumps: 0F62D4 -> 0F43E0, 0F4492
-0F43E0  func  vblank_task_0F43E0
-0F4492  func  vblank_task_0F4492
+# add a node; mdref --jumps: 0F62D4 -> 0F43E0, 0F4492. They cycle colours in the CRAM (read by 0F39A0, written by
+# 0F39C2): 0F43E0 colours 3-10 a step every 4 frames (FFF2C4); 0F4430 colours 8-10, every 4 frames, its way by
+# FFF2C5 bit 2; 0F4492 colours 36-45 in pairs and threes, by FFF2C2's remainders by 5 and 3 and FFF2C4's by 2
+0F43E0  func  cycle_colours_3_to_10
+0F4492  func  cycle_colours_36_to_45
 # the task of the node 0F442C, which 0F275E, 0F27DA and 0F2B84 pass to 0F4396 (no scenario runs it)
-0F4430  func  vblank_task_0F4430
+0F4430  func  cycle_colours_8_to_10
 # functions nothing calls: bytes between two functions that decode as instructions from their start to a
 # return, which no call, no jump and no table of the cartridge reaches (tools/coverage.py listed them as
 # unknown runs that decode whole, each after a return or a table and ending in one); no scenario runs them.

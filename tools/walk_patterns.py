@@ -59,8 +59,12 @@ How long a table is, the code that reads it says with the bound of its index; he
                  (the smallest, where the index is a sum: a block's size and an entry's), and the table goes on in
                  whole entries up to the next thing: a place the code names, what another subject describes, or
                  code. The index may come scaled from further back, or be what a call gave ("jsr (A3); addq.l
-                 #8, A7; lsl.w #2, D0": the 3 longs at 0A881E, 0F5CD8-0F5CE4). An index the lines before do not touch is a byte's ("move.b (A0,D2.w), D0" with D2 a
-                 loop's count: 0C02A6 and 0C02AC, 6 bytes each, 0D9C5C-0D9C74). It is not taken where that leaves a part of an entry, where a read is longer than an entry,
+                 #8, A7; lsl.w #2, D0": the 3 longs at 0A881E, 0F5CD8-0F5CE4). An index the lines before do not
+                 touch is a byte's ("move.b (A0,D2.w), D0" with D2 a loop's count: 0C02A6 and 0C02AC, 0D9C5C-0D9C74).
+                 Where the index is a loop's counter, cleared before it and "addq.w #1; cmpi.w #N; blt" after the
+                 read, the table is N entries (0C02A6 and 0C02AC, 5 bytes each, 0D9C92), and a byte at an odd place
+                 between it and the next thing is the byte that evens it. It is not taken where that leaves a part
+                 of an entry, where a read is longer than an entry,
                  or where it would be longer than SCALED_MOST. The index's values are whatever the code that sets
                  it gives (0BFDC4 and 0BFFFE, 57 entries of 10 bytes by an object's byte at +0A; the two tables
                  after them, 5). Where the code reads a word of entries of 4 bytes and the table is whole only
@@ -144,6 +148,7 @@ class CodePatterns:
         self.bounded_tables = {}        # {address: (entries, stride, kind, how)}: as many as a mask or a count says
         self.pointed_records = {}       # {address: (size, how it was found)}: read through a pointer at offsets
         self.scaled_tables = {}         # {address: (size of an entry, bytes read, how)}: by an index the code scales
+        self.scaled_bounds = {}         # {table: entries}: by the count of the loop whose counter indexes it
         self.values_in_place = {}       # {address: bytes read}: what the code reads by its address
         self.handed = set()             # the places the code hands over or keeps in a table (the anchors but
                                         # the constants of instructions)
@@ -766,10 +771,47 @@ class CodePatterns:
                     read = scale if step.mnemonic == "lea" else SIZES.get(step.size, scale)
                     self.scaled_tables[table] = (scale, read, f"its index times {scale} at {address:06X}, read at "
                                                               f"{step.address:06X}")
+                bound = self.loop_bound(at, uses[0].index)
+                if bound is not None:
+                    self.scaled_bounds[table] = bound
                 return
             if writes(step, pointer) or step.flow != "normal":
                 return
             at += 1
+
+    def loop_bound(self, position, register):
+        """The count of the loop whose counter indexes the read at 'position': forward from it in a straight line
+        (through calls too: the compiler keeps D2-D7 across them), "addq.w #1, Dreg" then "cmpi.w #N, Dreg" then a
+        "blt"/"bcs" back to at or before the read, the counter cleared before that target; None where the loop is
+        not found"""
+        here = self.ordered[position][0]
+        for at in range(position + 1, min(position + 1 + LOOP_WALKED, len(self.ordered) - 2)):
+            step = self.ordered[at][1]
+            operands = step.operands
+            if step.mnemonic == "addq" and step.size == "w" and operands[0].mode in ("quick", "immediate") \
+                    and operands[0].value == 1 and operands[1].mode == "dreg" and operands[1].reg == register:
+                compare, branch = self.ordered[at + 1][1], self.ordered[at + 2][1]
+                if compare.mnemonic != "cmpi" or compare.size != "w" or compare.operands[0].mode != "immediate" \
+                        or compare.operands[1].mode != "dreg" or compare.operands[1].reg != register:
+                    return None
+                if branch.flow != "branch" or branch.target is None or branch.target > here \
+                        or branch.target not in self.position_of \
+                        or not (branch.mnemonic in ("blt", "bcs")
+                                or (branch.mnemonic == "bcc" and branch.condition in ("lt", "cs"))):
+                    return None
+                first = self.position_of[branch.target]
+                for back in range(first - 1, max(first - 9, -1), -1):
+                    earlier = self.ordered[back][1]
+                    moved = earlier.operands
+                    if (earlier.mnemonic == "clr" and moved[0].mode == "dreg" and moved[0].reg == register) \
+                            or (earlier.mnemonic == "moveq" and moved[0].value == 0 and moved[1].reg == register):
+                        return compare.operands[0].value
+                    if writes(earlier, register):
+                        return None
+                return None
+            if writes(step, register) or step.flow not in ("normal", "call"):
+                return None
+        return None
 
     def spans_scaled(self, found):
         """The tables by a scaled index, in whole entries up to the next thing, where nothing describes them"""
@@ -792,9 +834,15 @@ class CodePatterns:
             if any(first <= start < stop for first, stop in spans):
                 continue
             stop = after(start)
+            if table in self.scaled_bounds:
+                bounded = start + self.scaled_bounds[table] * scale
+                if bounded <= stop:
+                    stop = bounded
             if (stop - start) % scale or stop - start > SCALED_MOST:
                 continue
             found[start] = (stop, "table by a scaled index")
+            if stop % 2 and after(stop) == stop + 1:
+                found[stop] = (stop + 1, "byte that evens a table")
 
     def read_in_place(self, position, address, instruction):
         """A value the code reads by its address in the cartridge"""
