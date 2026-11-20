@@ -1,0 +1,23 @@
+# The ending: Showdown from the title (the level select's flag poked on and C held, as showdown.txt), its boss
+# chamber destroyed (mode 4 poked at 1100 with the words its setup clears, as in bosses.txt), the ball's count (the
+# boss's 10,000,000 and the balls' bonus), and mode 6's step 11h with the player's byte at +0C bit 7 clear: the
+# table (+30) goes to 4, so 0D4E1C runs the ending's cutscene (0F5B9E, 2375-4075) and clears the balls and the
+# continues. With no ball left 0FF396 puts 25,000,000 first in the high scores (0FF3EE moves the five down), 0FF2A6
+# shows them and Start at 4200 ends them (0FF38A), and with the player's bit 7 clear 0D4EBE runs 0FF1F0: THE END and
+# the credits, then the front end (the title, then the demo at 10900).
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+600 poke FFF8F8 01
+620 press start1
+680 hold c1
+700 press start1
+780 press start1
+840 release c1
+1100 poke FF3CB7 04
+1100 poke FFAD1E 00
+1100 poke FFAD1F 00
+1100 poke FF5234 00
+1100 poke FF5235 00
+1100 poke FF783A 00
+1100 poke FF783B 00
+4200 press start1
+10850 end

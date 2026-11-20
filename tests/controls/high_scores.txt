@@ -1,0 +1,75 @@
+# A score into the high scores above the fifth: multiball.txt's game (Toxic Caves, the rings poked to 57 at 1600,
+# the search's flippers, the multiball), then its second and third balls started with the demo's opening at 7689
+# and 9234 (found as game_over.txt's, from the frame each ball's play starts: FF3CB4 at 2, the player's byte at +0C
+# at 1) and lost with no flipper. With no ball left, 0FF396 finds 2,154,500 above the first score (1,575,000) and
+# moves the five down (0FF3EE) to put the player's number and score first; 0FF2A6 shows them ("PL1") until its 400
+# steps run out with nothing pressed, and the front end follows: the title, then the demo at 13800.
+# There is no name to type: an entry is the player's number (0FF41C-0FF42C, the record's offset by 76) and the score.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press start1
+780 press start1
+952 hold up1
+952 hold right1
+1058 release up1
+1062 release right1
+1159 hold left1
+1200 release left1
+1215 hold c1
+1276 release c1
+1323 hold c1
+1434 release c1
+1483 hold c1
+1545 release c1
+1600 poke FF57A0 39
+1649 press c1 4
+1762 press a1 3
+1799 press c1 13
+1821 press a1 8
+1865 press c1 8
+1882 press a1 9
+1916 press c1 5
+1942 press a1 5
+2020 press a1 8
+2145 press a1 9
+2254 press b1 10
+2258 press a1 11
+2281 press c1 13
+2326 press a1 9
+2401 press c1 5
+2442 press a1 14
+2619 press c1 14
+2642 press b1 14
+2837 press a1 3
+2837 press b1 10
+2844 press c1 6
+2874 press c1 5
+2950 press c1 5
+2974 press c1 8
+3020 press b1 6
+3035 press b1 11
+7689 hold up1
+7689 hold right1
+7795 release up1
+7799 release right1
+7896 hold left1
+7937 release left1
+7952 hold c1
+8013 release c1
+8060 hold c1
+8171 release c1
+8220 hold c1
+8282 release c1
+9234 hold up1
+9234 hold right1
+9340 release up1
+9344 release right1
+9441 hold left1
+9482 release left1
+9497 hold c1
+9558 release c1
+9605 hold c1
+9716 release c1
+9765 hold c1
+9827 release c1
+13700 end

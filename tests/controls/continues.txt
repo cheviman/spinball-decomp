@@ -1,0 +1,37 @@
+# A continue used: bosses.txt's first two tables (the boss chambers of Toxic Caves and Lava Powerhouse destroyed,
+# mode 4 poked at 1700 and 6500 with the words their setup clears, as there). Lava Powerhouse's count takes the
+# score past 20,000,000, and 0D3E70 adds a ball and a continue (0D3F10-0D3F14: the player's bytes at +46 and +49).
+# The Machine's first ball is lost with nothing pressed (11325); mode 6's step 11h finds the player's byte at +0C
+# bit 7 set and a continue at +49: 0D4E30 takes it, 0D3FAC starts the table again (FF55A0 at FFFE), and the ball is
+# in play at 12100.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press start1
+780 press start1
+952 hold up1
+952 hold right1
+1058 release up1
+1062 release right1
+1159 hold left1
+1200 release left1
+1215 hold c1
+1276 release c1
+1323 hold c1
+1434 release c1
+1483 hold c1
+1545 release c1
+1700 poke FF3CB7 04
+1700 poke FFAD1E 00
+1700 poke FFAD1F 00
+1700 poke FF5234 00
+1700 poke FF5235 00
+1700 poke FF783A 00
+1700 poke FF783B 00
+6500 poke FF3CB7 04
+6500 poke FFAD1E 00
+6500 poke FFAD1F 00
+6500 poke FF5234 00
+6500 poke FF5235 00
+6500 poke FF783A 00
+6500 poke FF783B 00
+12200 end

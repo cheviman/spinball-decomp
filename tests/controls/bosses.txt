@@ -1,0 +1,59 @@
+# The four tables' boss chambers destroyed, from Toxic Caves to Showdown: the title with nothing held (Toxic Caves)
+# and the ball started with the demo's opening at 952 (as game_over.txt). In each table mode 4 (FF3CB4, a long:
+# FF3CB7 its low byte) is poked while it plays. 0D54CE(4) sets it when a boss is beaten (0D9D4A, 0E234C, 0ED936,
+# 0EDF3C), which takes the table's emeralds (the player's byte at +47, counted by 0DC29C against C0702: 3, 3, 5, 5)
+# and the ball in the boss's chamber hitting the boss four or five times: no fixed script plays that. The poke skips
+# 0D54CE's own case 4 (0D5552): the table's setup of the destruction (0E99D2, 0E4AC6, 0F0DD6, 0EDB1A: they hide the
+# other objects and place Sonic) and its messages. Of that setup, the three words every one of them clears are
+# poked with the mode: FFAD1E (the destruction's count, up to 300), FF5234 and FF783A. The rest runs as the game
+# runs it: the destruction (0D541E by FF75B0: 0E9A56, 0E4B64, 0F0E5A, 0EDBBC, reading C1534 and C1598 up to 49),
+# 0D54CE(5) and the escape (mode 5, 0D546C), the ball's count with the boss's 10,000,000 (mode 6), and its step 11h
+# with the player's byte at +0C bit 7 clear: the next table (+30), its bonus stage (0FA588) with nothing pressed, and
+# 0D3FAC. Poked at 1700 (Toxic Caves), 6500 (Lava Powerhouse), 10750 (The Machine) and 15475 (Showdown); Lava
+# Powerhouse's count takes the score past 20,000,000 (0D3E70: a ball and a continue). The run ends at 16550, with
+# Showdown's count done: ending.txt goes on to the ending.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press start1
+780 press start1
+952 hold up1
+952 hold right1
+1058 release up1
+1062 release right1
+1159 hold left1
+1200 release left1
+1215 hold c1
+1276 release c1
+1323 hold c1
+1434 release c1
+1483 hold c1
+1545 release c1
+1700 poke FF3CB7 04
+1700 poke FFAD1E 00
+1700 poke FFAD1F 00
+1700 poke FF5234 00
+1700 poke FF5235 00
+1700 poke FF783A 00
+1700 poke FF783B 00
+6500 poke FF3CB7 04
+6500 poke FFAD1E 00
+6500 poke FFAD1F 00
+6500 poke FF5234 00
+6500 poke FF5235 00
+6500 poke FF783A 00
+6500 poke FF783B 00
+10750 poke FF3CB7 04
+10750 poke FFAD1E 00
+10750 poke FFAD1F 00
+10750 poke FF5234 00
+10750 poke FF5235 00
+10750 poke FF783A 00
+10750 poke FF783B 00
+15475 poke FF3CB7 04
+15475 poke FFAD1E 00
+15475 poke FFAD1F 00
+15475 poke FF5234 00
+15475 poke FF5235 00
+15475 poke FF783A 00
+15475 poke FF783B 00
+16550 end

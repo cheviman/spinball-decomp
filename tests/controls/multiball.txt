@@ -1,0 +1,54 @@
+# The multiball played from Toxic Caves: the title with nothing held (Toxic Caves), the ball started with the first
+# 386 bytes of the demo's controls at 952 (as game_over.txt), then the rings poked to 57 at 1600: FF57A0, the
+# player's byte at +48, which 0E1BBE counts a ring at a time (0E1C2A) against the table's count at C151C (58 in
+# Toxic Caves); no fixed script collects 57 of them. The flippers after it were found by a search on the reference
+# (32 tries of random presses every 120 frames, keeping the one that leaves the ball in play with the most rings):
+# the 58th ring at 2324 lights the multiball (0E1C34: 0E1B5A(1), "ALL RINGS COLLECTED"), and the ball hits it at
+# 3020 (0E65DA's 0E67FE calls 0E1CAE: "* ENTERING MULTI BALL *", mode 3 at FF3CB4, the count FFF1FA at 78h). When the
+# count runs out 0D5356 runs the stage (0D3F5E(0): 0FA588, stage 1) with nothing pressed; 0FA588 does not return the
+# negative count bonus_stages.txt's stage 1 returned, so 0D5356 takes 0D53B6 and 0D4228 gives the table back at
+# 6150. The ball is lost at 6800, mode 6 counts it (the rings' bonus) and the second ball waits at 7700.
+# The frames are those of a run with the Z80 on (--z80-rom-reads).
+620 press start1
+700 press start1
+780 press start1
+952 hold up1
+952 hold right1
+1058 release up1
+1062 release right1
+1159 hold left1
+1200 release left1
+1215 hold c1
+1276 release c1
+1323 hold c1
+1434 release c1
+1483 hold c1
+1545 release c1
+1600 poke FF57A0 39
+1649 press c1 4
+1762 press a1 3
+1799 press c1 13
+1821 press a1 8
+1865 press c1 8
+1882 press a1 9
+1916 press c1 5
+1942 press a1 5
+2020 press a1 8
+2145 press a1 9
+2254 press b1 10
+2258 press a1 11
+2281 press c1 13
+2326 press a1 9
+2401 press c1 5
+2442 press a1 14
+2619 press c1 14
+2642 press b1 14
+2837 press a1 3
+2837 press b1 10
+2844 press c1 6
+2874 press c1 5
+2950 press c1 5
+2974 press c1 8
+3020 press b1 6
+3035 press b1 11
+7700 end

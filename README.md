@@ -12,7 +12,7 @@ decompiled C and the builds come next (`docs/plan.md`).
 
 ## Status
 
-As of 2026-11-19:
+As of 2026-11-20:
 
 - [x] Cartridge verification (USA, `GM MK-1537 -00`) by CRC32 and SHA-1
 - [x] Reference: the original program on MAME's 68000 core against the Mega Drive in C of
@@ -24,9 +24,13 @@ As of 2026-11-19:
       stages (`bonus_stages.txt`); and four through the front end with real input: the attract with nothing
       pressed (`attract.txt`), Toxic Caves' three balls lost to the high scores (`game_over.txt`), every option, the
       level select's and the credits' buttons and the credits (`options.txt`), and four players' twelve balls lost by
-      turns (`players.txt`); all run with `--z80-rom-reads`, as their frames were found
+      turns (`players.txt`); and five through the rest of a game: the multiball reached and played
+      (`multiball.txt`: the rings poked one short, then flippers a search on the reference found), that game to the
+      top of the high scores (`high_scores.txt`), the four boss chambers destroyed with mode 4 poked (`bosses.txt`),
+      a continue won and used (`continues.txt`), and the ending and the credits after Showdown (`ending.txt`); all
+      run with `--z80-rom-reads`, as their frames were found
 - [x] Static analysis without traces (arcade-decomp's 68000 analysis, with this compiler's switches and
-      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 28,161 addresses the nine scenarios
+      calls in `tools/spinball_analysis.py`): 48,553 instructions in 444 functions, and every one of the 29,967 addresses the fourteen scenarios
       execute is found; the 27 functions reached only through data are in `symbols.txt` with how they were found
 - [x] The cartridge's bytes classified: 16.7% code, 81.3% described data, 0.4% unknown; the rest is data the
       code reads or points at, waiting for its formats
