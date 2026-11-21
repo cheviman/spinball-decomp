@@ -313,3 +313,997 @@
 0C3854  data  toxic_caves_rings
 0C49CC  data  showdown_rings
 0C60B2  data  the_machine_rings
+
+# the names of step 7's first round: drafted by the worker from each function's translated C and left unchanged
+# by a second model's review (build/step7_names); not yet read against the code one at a time
+0003E0  func  draw_string_to_vram  # computes VRAM address from two byte args, writes string chars minus 0x20 as words
+0D3D4C  func  vblank_handler  # increments frame counter, runs updates, reads controller ports
+0D3DF2  func  return_from_exception  # rte: pops status register and return address off the stack, resumes the interrupted code
+0D3E00  func  wait_for_frame_tick  # loops until the frame counter at FF0000 changes from the value read at entry
+0D3E42  func  infinite_loop_0D3E42  # branches to itself forever; execution never proceeds past this point
+0D3E44  func  infinite_loop_0D3E44  # branches to itself forever; never returns
+0D3E4A  func  halt_loop_0D3E4A  # branches to itself forever; an infinite hang with no exit
+0D3E4C  func  infinite_loop_0D3E4C  # branches to itself forever, hanging execution
+0D3E4E  func  infinite_loop_0D3E4E  # branches to itself forever: a halt trap with no exit
+0D3E52  func  infinite_loop_0D3E52  # branches to itself forever, hanging the CPU where it runs
+0D3E58  func  infinite_loop_0D3E58  # loops forever by branching to itself
+0D3E5A  func  spin_forever  # branches to itself forever; never returns
+0D3E5C  func  infinite_loop_0D3E5C  # Branches to itself forever and never returns.
+0D3E5E  func  infinite_loop_0d3e5e  # branches to itself forever without halting the CPU
+0D3E60  func  halt_loop_0D3E60  # Branches to itself forever: an infinite hang, beside the stop and rts at 0D3E68
+0D3E64  func  hang_forever  # spins in place forever, branching to itself; an infinite loop
+0D3E66  func  infinite_loop_0D3E66  # branches to itself forever, leaving the CPU in an infinite loop.
+0D3E6C  func  infinite_loop_0D3E6C  # branches to its own address forever, so the CPU never continues
+0D3E70  func  add_player_score  # adds to the current player's score, tracks 20-million thresholds, and may show a message
+0D3F5E  func  collect_ring_0D3F5E  # increments player's ring count, adds score, plays sound, returns success
+0D3FAC  func  load_level  # Loads level tiles, collision, sizes, start positions, then dispatches to level-specific setup.
+0D410E  func  call_0e7584_then_continue_0d412c  # calls 0E7584, then branches to 0D412C
+0D4116  func  call_0e2fb2_then_0d412c  # calls 0E2FB2, then continues at 0D412C
+0D4126  func  call_0ed026_then_0d412c  # Calls 0ED026, then calls 0D412C and returns.
+0D412C  func  init_level_0D412C  # sets the level's palettes, countdown, camera start, clears state and starts its music
+0D4228  func  init_level_0D4228  # loads level graphics and HUD, initializes level position and palettes, resets player state, and starts level music
+0D4414  func  update_player_state  # Checks a per-player byte for 0x12, decrements FF783C otherwise, then dispatches by FF75B0 when it is 0–3.
+0D447E  func  call_e206a_then_e3150_if_two  # calls E206A, then E3150 when the long at A2 equals 2
+0D44A6  func  call_eb764_and_check_a2  # Calls 0EB764, then 0ED5D8 if the long at A2 equals 2; restores A2.
+0D44BC  func  update_level_frame  # runs the per-frame update calls, then counts down the FF000C level timer every 64 frames
+0D4500  func  handle_level_end  # handles level-end state, displays a message for state -2, updates the player record, and dispatches by level.
+0D4646  func  switch_on_word_at_a3  # reads word at A3, dispatches 0-3 through jump table; otherwise calls 0D44BC
+0D4674  func  object_timer_expiry_action  # clears object field 0x22; when timer A4 expires, sets it, triggers effect, increments counter
+0D4830  func  init_player_object  # builds current player's animated object and resets its motion fields
+0D49B6  func  update_level_countdown  # decrements the level timer, plays a sound when it expires, and displays a message at a later threshold
+0D49E0  func  skip_return_address  # discards its return address, calls the following routine, then returns to the caller's caller.
+0D49E2  func  advance_level_state  # increments state counter, dispatches via jump table, waits, runs palette animation
+0D4A42  func  level_end_state_machine  # state machine for level end sequence, steps 0-17, clears flags and animates palette
+0D4B00  func  update_level_state_machine  # dispatches level-state handlers through A5, advances state entries, and optionally cycles palette colors.
+0D4B2A  func  call_sub_0d4b3c_with_fixed_args  # pushes 0, 20, 5, 2, 7, then calls 0D4B3C.
+0D4B3C  func  show_message_then_continue_0D4B3C  # Calls show_message, removes six stack arguments, then jumps to 0D49E2.
+0D4B4A  func  level_loop  # dispatches 18 level states, waits frames, updates objects and palette animations
+0D4B50  func  run_script_commands  # dispatches word commands from A5 through a jump table; clears state when FF41C2 is clear
+0D4BBA  func  show_message_advance  # displays a message then advances the stack pointer by 24 bytes
+0D4BC8  func  run_level_state_machine  # dispatches level states 0-17, waits for early states, and runs shared processing with optional palette updates
+0D4BDC  func  run_command_sequence  # reads commands from (A5) and dispatches them through a jump table
+0D4C08  func  call_sub_0d4b3c  # tail-calls sub_0d4b3c after pushing 0, 20, 5, 2, 6 in that order
+0D4C1E  func  add_score_bonus_and_show  # adds 100000 to FF000E, formats it and shows it as a message
+0D4C72  func  update_object_script  # dispatches object-script commands and advances the script pointer; may update palette cycles too
+0D4CA0  func  add_score_and_update_tally  # adds 10,000,000 to score, decrements a counter, and calls display routines.
+0D4CF4  func  show_message_and_continue  # calls show_message with caller's args, then pushes 0x28 and tail-calls 0D4BC8
+0D4D22  func  level_end_bonus  # adds 5,000,000 points, formats score text, runs end-of-level tally sequence
+0D4D6C  func  level_state_machine  # Tests FF41C2, dispatches level-state handlers, waits as needed, updates palette animations, and prepares a message when clear.
+0D4EFE  func  get_adjusted_ff000a  # returns FF000A less 512 when >=1440, else through 0D67DA with 45, 29
+0D52D8  func  main_game_loop  # reads controller, dispatches on game mode, waits for vblank each frame
+0D5356  func  run_game_state_loop  # dispatches on FF3CB4 through a jump table, waits for frames, and runs the level update each frame
+0D541E  func  dispatch_by_ff75b0  # jumps via table at 0D5436 indexed by FF75B0; values >3 go to 0D545C
+0D543E  func  call_0e9a56_then_0d545c  # calls 0E9A56, then jumps to 0D545C; purpose unclear
+0D5446  func  call_sub_0e4b64_then_0d545c  # calls sub_0E4B64, then tail-branches to sub_0D545C; purpose unknown
+0D544E  func  call_0f0e5a_then_0d545c  # calls 0F0E5A, then branches to 0D545C; purpose uncertain
+0D545C  func  call_0ddcc4_then_0d5462  # calls 0DDCC4, then calls 0D5462 and returns
+0D54AC  func  level_main_loop  # Waits for frame, updates input, dispatches to level routine by FF3CB4.
+0D54CE  func  set_ff3cb4_and_dispatch  # stores its argument in FF3CB4, dispatches arguments 1–6 through a PC-relative table, and sends others to a fallback
+0D5552  func  dispatch_on_a3_word  # Sign-extends the word at A3; dispatches indices 0–3 through a PC-relative table, otherwise jumps to 0D558C.
+0D556E  func  call_0e99d2_then_0d558c  # calls 0E99D2, then continues at 0D558C
+0D5576  func  call_e4ac6_then_continue  # calls 0E4AC6 then continues at 0D558C
+0D557E  func  call_helper_then_continue  # calls the helper at 0F0DD6, then continues at 0D558C
+0D558C  func  show_state_messages  # Shows messages depending on (A3), then calls 0D560E with 0x22.
+0D55F8  func  start_level  # calls 0D4830 then jumps to 0D5604
+0D55FE  func  clear_ff55a0  # clears the word at FF55A0, then calls 0D5604
+0D5604  func  restore_a2_a3_and_return  # restores A2-A3 from the frame, unwinds A6 and returns
+0D560E  func  maybe_send_gems_command  # Calls GEMS command 0F615E with low word of argument if FFF8D6 is set.
+0D562C  func  start_music  # stores the requested track at FF548E and sends it to GEMS when both sound flags are set
+0D565E  func  send_pending_gems_command  # if FF548E is nonnegative, sends its value to GEMS, then sets it to -1
+0D567E  func  send_gems_sound_command  # if FFF8D6 is set, calls 0D56A8, sends D2 to GEMS, and stores its low word at FF548C
+0D56A8  func  play_pending_sound  # if FF548C holds a non-negative sound ID, play it and clear to -1
+0D56E0  func  clear_record_words  # clears the first word of 256 64-byte records at FFAD48
+0D56FA  func  process_flagged_objects  # loops 256 objects at FFAD24, calls sub_0D7CCC when flag 8000 or 2000 set
+0D574E  func  process_objects  # Iterates 256 object slots, updating active ones and drawing them.
+0D58B0  func  update_object_sound  # clears an object sound flag, selects its sound slot from byte 0x3F, and starts or changes the sound as needed
+0D591E  func  get_object_sprite_attributes  # reads an object's animation data and returns its sprite word with mirroring applied
+0D5A06  func  update_object_animation  # steps an object's animation script and frame delay, chaining to linked objects
+0D5B2E  func  dispatch_object_type  # reads object type from its word bits 8-12, stores to FF0014, dispatches through a table; type 13 returns 1
+0D5BF2  func  clear_animation_frame_fields  # clears animated object bytes 2A and 2B, returns 2
+0D5C54  func  set_animation_frame_count_0D5C54  # sets object field 2A to argument minus 1, returns 2
+0D5C60  func  set_animation_frame_count_0D5C60  # sets animated object's frame count (field 2A) from D2 via 0D69FA, returns 2
+0D5C6E  func  set_animated_object_flag5_and_clear_count  # sets bit 5 at +22, clears byte +2A, and calls sub_0D5DF0 if bit 1 is set.
+0D5C88  func  set_animation_frame_time  # stores D2 into animated object field 2B, then continues at 0D5DF0
+0D5C90  func  make_animated_object_from_script  # consumes cursor parameters, creates an animated object from A3's definition, and sets its flags
+0D5D76  func  call_indirect_a3_then_jump_0d5df0  # calls the routine at (A3), discards saved A2, continues at 0D5DF0
+0D5D7E  func  call_0d8410_with_d2_byte  # pushes D2's low byte in D0 and A2, calls 0D8410, then continues at 0D5DF0
+0D5D8E  func  set_object_word_and_pointer_word  # writes D2 to object +0xC and to +4 of its field 3A pointer, then continues at 0D5DF0
+0D5D9C  func  play_sound_byte  # calls GEMS command 0F6174 with low byte of D2, then tail-calls 0D5DF0
+0D5DAC  func  add_to_object_field_8  # adds D2 to word at offset 8 of object A2, then continues
+0D5DB0  func  run_object_callbacks_preserving_field_22_bit0  # Calls A5 then, if nonzero, A4 on A2, preserving bit 0 of A2+22.
+0D5DD8  func  add_d2_to_object_field_a_loop  # adds D2 to the word at +0xA of A2, then repeats the loop at 0D5DB0
+0D5DE4  func  set_object_field_0a  # writes D2 to object field 0xA, then branches to 0D5DB0
+0D5DEA  func  unknown_0d5dea  # calls 0D3E6C then 0D5DF0
+0D5DF0  func  return_zero_restore_registers  # restores D2-D4/A2-A5 from stack, returns 0 in D0
+0D6382  func  compare_words_a3_a5_0d6382  # loads the word at A3 into D0, compares it with the word at A5, then branches unconditionally to 0D6396.
+0D6560  func  check_object_field_22_bit_2  # run sub_0D656E if bit 2 of the object's field 22 is set
+0D656E  func  update_object_from_parent  # sets object position from parent's position plus offset; hides if parent hidden
+0D65AA  func  tail_call_0d65be_with_first_arg  # loads caller's first argument into A1 and continues into 0D65BE
+0D65B0  func  run_animated_object  # animated object from stack; if field 22 bit 2 set call 0D656E, then run 0D65BE
+0D65BE  func  update_object_screen_position  # stores camera-relative screen x,y into the object's animated sprite and sets its on-screen flag bit
+0D6724  func  set_indexed_value  # stores a value in an index-selected object byte or global table slot, with offsets derived from object fields
+0D6796  func  is_object_on_screen  # returns 1 if object's bounding box overlaps camera viewport bounds
+0D67DA  func  multiply_and_divide_words  # Multiplies the first two signed word arguments, then divides by the third; D0 holds remainder high and quotient low.
+0D67E8  func  multiply_signed_words  # multiplies the two signed words on the stack, returning the 32-bit product in D0
+0D6810  func  scale_by_fixed_1_14  # signed multiply of 16-bit integer by 32-bit fixed-point value with 14 fractional bits
+0D6912  func  cosine  # adds a quarter turn ($4000) to its angle argument, then returns sine (cosine)
+0D6966  func  clear_words  # fills the word array at A0 with D1 zero words (nothing when D1 is 0)
+0D697C  func  fixed_divide  # signed arg1/arg2 scaled to 1.0=0x4000, saturated to +/-0x4000 when |arg1|>=|arg2|
+0D69B6  func  random  # updates 32-bit random seed at FF001E, returns random value in D0
+0D69E4  func  interpolate_word  # Interpolates between two word arguments using a 16-bit fraction returned by 0D69B6.
+0D69FA  func  random_in_range  # calls 0D69B6, scales its result by the stack word, returns the product's high word
+0D6A04  func  abs_long  # takes the absolute value of its long argument, negating it when negative
+0D6A0E  func  distance_approx  # Approximates the length of a 2D vector from its x and y.
+0D6A9E  func  square_root  # integer square root of its argument by bit-by-bit trial subtraction, result in D0
+0D6C2A  func  run_colour_cycle  # dispatch to one of four palette colour-cycle routines by the index in FF75B0, or return if over 3
+0D6C50  func  animate_palette_cycle  # advances a palette-cycle step when its timer expires, choosing a handler by position threshold and step index
+0D6CB8  func  set_ff41de_word_0D6CB8  # writes 0x660 to FF41DE, then runs on into sub_0D6CC0
+0D6CC0  func  set_ff0030_to_4  # writes 4 to FF0030, then continues at 0D6D14
+0D6CCA  func  set_ff41de_0D6CCA  # writes 0x288 to FF41DE, then branches into 0D6CC0
+0D6CD4  func  set_ff41de_counter  # sets word FF41DE to 0CEh then enters loop at 0D6CC0
+0D6CDE  func  set_ff41de_and_ff0030  # writes 4EE to FF41DE and 14 to FF0030, then jumps to 0D6D14
+0D6CF0  func  set_ff41de_ce  # writes 0xCE to FF41DE, then jumps to 0D6D0C
+0D6CFA  func  set_ff41de_0d6cfa  # stores 0x288 (648) in the word at FF41DE, then branches to 0D6D0C
+0D6D04  func  set_ff41de_word_0d6d04  # writes 0x660 to word at FF41DE, then runs 0D6D0C
+0D6D0C  func  set_ff0030_to_6  # writes 6 to FF0030, then calls sub_0D6D14.
+0D6D14  func  call_0d85f4_with_zero_0D6D14  # Pushes zero, calls 0D85F4, then continues into 0D6D1E.
+0D6D1E  func  step_sequence  # decrements timer FF002E; on expiry advances step FF003E (wraps at 18) and dispatches through a table
+0D6D7C  func  set_ff41e0_to_2e  # writes 2Eh to FF41E0, then tail-calls 0D6D84
+0D6D84  func  set_ff002e_to_4  # sets word at FF002E to 4, then jumps to 0D6F92
+0D6D90  func  set_ff41e0_then_0d6d84_0D6D90  # sets FF41E0 to 14 then runs 0D6D84
+0D6D9A  func  set_ff41e0_to_10  # writes word 10 to FF41E0, then continues into 0D6D84
+0D6DA4  func  set_ff41e0_to_8_0D6DA4  # writes 8 to FF41E0, then continues at 0D6D84
+0D6DAE  func  set_ff41e0_to_6_then_continue  # writes 6 to FF41E0, then branches into sub_0D6D84
+0D6DB8  func  set_ff41e0_20  # writes 20h to FF41E0, then continues at 0D6D84
+0D6DC2  func  set_ff41e0_and_continue_0d6d84  # writes 0x40 to word FF41E0, then branches into 0D6D84
+0D6DCC  func  set_ff41e0_to_60_0D6DCC  # writes 60h to FF41E0, then branches into 0D6D84
+0D6DD6  func  set_ff41e0_to_c0  # writes 0xC0 to FF41E0, then calls sub_0D6DDE, which returns here for return to caller
+0D6DDE  func  set_ff002e_to_6  # writes 6 to FF002E, then continues at 0D6F92
+0D6DEA  func  set_ff41e0_to_e0  # writes 0xE0 to FF41E0, then tail-calls 0D6F8A
+0D6E52  func  set_ff41de_0d6e52  # writes 0x406 to FF41DE, then calls sub_0D6E5A
+0D6E64  func  set_word_ff41de_0d6e64  # writes 0x20A to FF41DE, then branches to 0D6E5A
+0D6E6E  func  set_ff41de_to_14  # stores 14 in FF41DE, then branches to the routine at 0D6E5A
+0D6E8A  func  set_ff41de_0D6E8A  # writes 0Eh to FF41DE, then branches into the function at 0D6EA6
+0D6E94  func  set_ff41de_0D6E94  # writes 0x20A to FF41DE and branches to 0D6EA6
+0D6E9E  func  set_ff41de_0D6E9E  # stores the word 0x406 at FF41DE and continues into 0D6EA6
+0D6EA6  func  set_ff0030  # writes 6 to word FF0030, then calls 0D6EAE
+0D6F16  func  set_ff41e0_and_jump_0d6d84  # writes 4EE to FF41E0, then branches to 0D6D84
+0D6F22  func  set_ff41e0_then_0d6d84_0D6F22  # writes 0xCE to FF41E0, then continues at 0D6D84
+0D6F2E  func  set_ff41e0_288_and_continue  # writes 288h to FF41E0, then branches into 0D6D84
+0D6F3A  func  set_ff41e0_660  # writes 0x660 to FF41E0, then branches into sub_0D6D84
+0D6F46  func  set_ff41e0_622  # writes word 0x622 to FF41E0, then tail-continues into sub_0D6D84
+0D6F5E  func  set_ff41e0_and_continue  # writes 0x640 to FF41E0, then jumps into sub_0D6D84
+0D6F6A  func  set_ff41e0_880  # writes 0x880 to FF41E0, then branches into sub_0D6D84
+0D6F76  func  set_ff41e0_to_cc0_and_branch  # Writes 0xCC0 to FF41E0, then continues at 0D6DDE.
+0D6F82  func  set_ff41e0_0ee0  # writes 0EE0h to the word at FF41E0, then calls sub_0D6F8A
+0D6F8A  func  set_ff002e_to_8  # writes 8 to the word at FF002E, then continues into sub_0D6F92
+0D6F92  func  call_0d85f4_with_zero_0D6F92  # Pushes a zero argument, calls 0D85F4, discards it, then continues at 0D6F9C.
+0D6FF6  func  set_ff4202_then_0d705e  # Writes 0xE6E to FF4202, then continues at 0D705E.
+0D7000  func  set_ff4202_to_e4e  # writes 0xE4E to FF4202, then calls 0D7008
+0D7008  func  set_ff0026_to_6  # writes 6 to FF0026, then continues at 0D7066
+0D701A  func  set_ff0026_to_4  # writes 4 to FF0026, then continues at 0D7066
+0D7024  func  set_ff4202_0d7024  # writes 0A2E to RAM FF4202, then branches to 0D701A
+0D702E  func  set_ff4202  # writes 0x80E to FF4202, then continues into sub_0D701A
+0D7038  func  set_ff4202_60c_and_branch  # writes 0x60C to FF4202, then branches to 0D701A
+0D7042  func  set_ff4202_1546  # writes 1546 to FF4202, then branches to 0D701A
+0D704C  func  set_ff4202_to_408  # writes 0x408 to FF4202, then branches to sub_0D7008
+0D7056  func  set_ff4202_0206  # writes 0x206 to RAM FF4202, then calls 0D705E
+0D7066  func  call_sub_0d85f4_then_0d7072  # passes 1 to 0D85F4, then tail-calls 0D7072
+0D7072  func  update_palette_by_camera_y  # selects palette rows from camera y, reloads them when they change, and advances palette animations.
+0D71DE  func  copy_ff41ea_to_ff41e6  # Copies word FF41EA to FF41E6 with flags, then continues at 0D7214.
+0D71EA  func  copy_words_to_ff41e6_0D71EA  # copies words FF0046 and FF0048 to FF41E6 and FF41E8, then continues at 0D7214
+0D7200  func  copy_words_to_ff41e6_0D7200  # copies FF0048 and FF0046 into FF41E6 and FF41E8, then continues at 0D7214
+0D736A  func  set_ff41e2_and_ff002a_call_0d85f4  # writes 4E4 to FF41E2 and A to FF002A, then calls 0D85F4 with 0
+0D7388  func  step_counter_and_dispatch_0d7388  # counts FF0022 down, then steps FF0032 through 14 jump-table handlers when it reaches zero
+0D73DE  func  clear_ff41e0  # clears the word at FF41E0, then calls sub_0D73E4
+0D73EE  func  set_ff41e0_to_2_then_loop  # writes 2 to FF41E0, then branches back to 0D73E4
+0D73F8  func  set_ff41e0_to_4  # writes 4 to FF41E0, then continues into the code at 0D73E4
+0D7402  func  set_ff41e0_to_6_0d7402  # writes 6 to RAM FF41E0, then continues at 0D73E4
+0D740C  func  set_ff41e0_to_8_0D740C  # writes 8 to FF41E0, then continues into the code at 0D73E4
+0D7416  func  set_ff41e0_10  # writes 10 to the word at FF41E0, then continues at 0D73E4
+0D7420  func  set_ff41e0_and_branch_0d73e4  # writes 12 to FF41E0, then branches to 0D73E4
+0D743A  func  call_with_zero_and_continue  # Passes zero to 0D85F4, then continues into 0D7444.
+0D7444  func  update_palette_animation  # on two timers, rotates four colour words and jumps into one of four palette cycles
+0D74C8  func  set_ff4200_and_ff002a_0d74c8  # writes 14 to FF4200 and 40 to FF002A, then continues at 0D74F2
+0D74DA  func  clear_word_ff4200_then_0d74ea  # Clears word at FF4200, then jumps to 0D74EA.
+0D74E2  func  set_ff4200_to_14  # writes word 14 to FF4200, then continues at 0D74EA
+0D74F2  func  call_0d85f4_with_1  # pushes 1, calls 0D85F4, then continues into 0D74FE
+0D74FE  func  advance_timer_sequence  # counts down FF002E; on expiry advances step FF003E and jumps through its table
+0D7568  func  set_ff41e0_to_60_0D7568  # writes 60h to FF41E0, then continues into 0D75A2
+0D7572  func  set_ff41e0_to_20  # writes 0x20 to FF41E0, then continues into the code at 0D75A2
+0D757C  func  set_ff41e0_200  # writes 0x200 to FF41E0, then continues at 0D75A2
+0D7586  func  set_ff41e0_600  # writes 0x600 to FF41E0, then continues at 0D75A2
+0D7590  func  set_ff41e0_0a00  # writes 0xA00 to word FF41E0, then continues at 0D75A2
+0D759A  func  set_ff41e0  # writes 0E00h to FF41E0, then continues into sub_0D75A2
+0D75A2  func  set_ff002e_and_call_0d85f4  # writes 4 to FF002E, calls 0D85F4 with 0, falls into 0D75B4
+0D75B4  func  update_blink_colour  # every 4 ticks toggles FF41FE between $EE and $EEE (blinking colour)
+0D76DE  func  set_ff41d8_to_8e0  # writes 0x8E0 to FF41D8, then continues at 0D770E.
+0D76E8  func  set_ff41d8_and_continue  # writes 0xa80 to ff41d8, then branches to 0d770e
+0D76F2  func  set_ff41d8_to_c40  # writes 0xC40 to FF41D8, then continues into the routine at 0D770E
+0D76FC  func  set_ff41d8_to_c02  # writes 0xC02 to FF41D8, then branches to 0D770E
+0D7706  func  set_ff41d8_0c06  # writes word 0C06 to FF41D8, then tail-calls 0D770E
+0D770E  func  set_game_mode_12  # calls 0D85F4 with 0, sets FF0022 to 12, then runs 0D7720
+0D7720  func  advance_timed_sequence_step  # counts down FF0024; when zero, advances FF0034 (0-3) and jumps to that step's handler
+0D775E  func  set_ff41de_0d775e  # sets FF41DE to 0E2A, then continues at 0D777A
+0D7768  func  set_ff41de_word_0D7768  # writes 0x0A2A to FF41DE, then unconditionally branches to 0D777A
+0D7772  func  set_ff41de_0d7772  # writes 0xA26 to FF41DE, then calls 0D777A.
+0D777A  func  call_0d85f4_set_ff0024  # calls 0D85F4 with 0, sets FF0024 to 2, then continues at 0D778C
+0D7AB8  func  clear_fields_0d7ab8  # clears the 20 words from FF0022 to FF0048
+0D7B32  func  set_object_link  # sets two cross-referenced bytes in a table at FFA8F5, linking two objects by index.
+0D7B60  func  advance_state_table  # Follows next state from FFA8F4+6 via FF004A, marks entry, calls sub_0D7B32.
+0D7C60  func  remove_object_from_list  # Unlinks object A2 from its type list and sets its list index to FF.
+0D815C  func  clear_sprite_list  # frees each non-0xFF byte in a 20-byte list at offset 0xE, marking them 0xFF
+0D819E  func  free_object_sprite  # frees the object's field 0xA sprite and clears it
+0D845C  func  swap_screen  # copies 80 words to back buffer, saves camera, waits for VBlank, swaps buffers
+0D84F2  func  init_vdp_registers  # configures VDP registers, then enables display and interrupts
+0D8558  func  clear_ff0058_and_call_d84f2_d831c  # clears FF0058, then calls 0D84F2 and 0D831C; purpose uncertain
+0D85A0  func  load_palette  # Copies palette D1 into RAM line D2, records it, and flags an update.
+0D85F4  func  set_ff0054_flag_and_state  # sets flag byte FF0054+arg to 1 and FF0058 to 2 when state is 0 or 2
+0D863E  func  copy_palette  # copies the 16 colours the line's palette number picks into the work buffer at FF41C4
+0D8674  func  set_palette_line_index  # stores its second argument as the palette table's entry for the line number its first argument gives
+0D8688  func  set_background_colour  # writes its word argument ORed with 8700 to the VDP control port, setting register 7 (background colour)
+0D86CA  func  wait_for_ff0058_change  # sets FF005C to 8 and FF0058 to 5, then loops until FF0058 no longer equals 5
+0D86E6  func  set_ff005c_and_wait_ff0058  # Sets FF005C to 8 and FF0058 to 6, then waits until FF0058 differs from 6.
+0D8702  func  wait_for_ff0058_reach_7  # Sets FF005C to 8 and FF0058 to 7, then waits until FF0058 equals 7
+0D871E  func  wait_until_ff0058_changes_from_8  # sets FF005C and FF0058 to 8, then waits until FF0058 is not 8
+0D877A  func  load_palettes  # loads palette lines into CRAM from the palette table, clearing the dirty flags
+0D87EE  func  write_changed_palettes  # writes each flagged palette line's changed colours to CRAM, caching them in RAM
+0D888C  func  clear_cram_lines  # clears the flagged CRAM palette lines (FF0054-FF0057) to black
+0D89A6  func  fade_palette_down_step  # writes 64 colours from FF41C4 to CRAM, lowering each component by one
+0D8A28  func  fade_palette_in  # Writes RAM palette at FF41C4 to CRAM, stepping each colour toward full brightness.
+0D8AC6  func  fade_palettes  # steps palette colors toward ROM targets, writes four lines to CRAM, and decrements the fade countdown
+0D8BB6  func  set_vram_write_address  # writes the VDP command for a VRAM write address from its word argument
+0D8BCE  func  set_vdp_read_address_0D8BCE  # writes its 16-bit argument to the VDP control port as a VRAM read address
+0D8BE2  func  set_cram_write_address  # sets the VDP's CRAM write address from its word argument
+0D8BFA  func  clear_vdp_memory  # Zeroes all VRAM, CRAM and VSRAM (auto-increment 2 set first).
+0D8C38  func  draw_map_to_vram  # copies a rectangular tilemap from a source pointer to a VRAM tile address
+0D8D0E  func  draw_level_map_row  # draws a row of the level map from brushes into VRAM
+0D8E12  func  draw_plane_column  # draws a vertical strip of level plane tiles from map and brushes
+0D8F22  func  update_objects_by_type  # loops over FF5686 entries and dispatches FF784C game objects by byte +E.
+0D8FD8  func  update_object_state_machine_0D8FD8  # advances object states, spawns an animation, adjusts coordinates, then resets and signals completion
+0D91F8  func  update_object_state_machine_0D91F8  # dispatches on a 22-state jump table and spawns an animated object
+0D92B6  func  update_flipper_state  # updates flipper state, direction and angle, toggling its mirror flag under state conditions
+0D932A  func  update_object_timer_state  # increments timer; at 120 or pointed byte set, sets state 2 and continues.
+0D9346  func  set_object_fields_0d9346  # Calls 0E1ABE with A3 and constants, sets A3 fields 8 and 0A and A2+8, then jumps to 0DB222.
+0D9378  func  update_object_position_and_timer  # adds signed velocity to object's position, decrements timer; at 0x7DE sets state byte to 4
+0D9456  func  increment_object_field_c_and_set_state  # increments word at +0xC; at 0x1E sets byte +0x8 to 7, then jumps to 0DB222.
+0D96DA  func  update_object_0d96da  # adds a signed byte to its position, updates a linked object's position and counters, and spawns an animation at count 830.
+0D987A  func  update_object_wait_timer  # Counts 240 ticks; if +0x4C is nonzero, calls 0xE1ABE with +0x66 and constants, sets state 2, and resets timer.
+0D98B4  func  toggle_mirror_set_animation  # toggles mirror, sets animation 276 or 28A, calls animation setup, clears a flag, and sets state 3
+0D99C0  func  set_object_frame_and_state_6  # selects a sprite frame from the animation mirror flag, updates the mirror flag, calls helpers, and sets state 6
+0D9A3C  func  count_to_state_7  # increments word at +0xC; at 60 calls 0E1ABE and sets state byte +8 to 7
+0D9D66  func  count_up_and_end_animation  # advances a timer by 3 and, past y+90, sets the end flag and clears the object's animation.
+0D9F06  func  dispatch_object_state_0D9F06  # dispatches on object byte 0B (1-4) via jump table when byte 2A is zero
+0D9F54  func  dec_counter_set_state  # subtracts 3 from the word at the pointer in A2+0x22 plus 0xA and sets A2+0xB to 4
+0D9F70  func  dispatch_object_byte9_jump_table  # if byte 8 is nonzero, dispatches byte 9 values 0–4 via a jump table; otherwise branches to DB222 or on out-of-range values.
+0D9F9C  func  animation_move_path_then_spawn  # moves object by two byte tables for 100 steps, then ends it and spawns one at 640,1424
+0DA026  func  update_animation_frame_timer  # advances animation frame index when its delay counter at A3+0xA reaches the table value at C029C
+0DA116  func  update_flipper  # spins flipper object between pivot limits, mirroring at ends, random speed when triggered
+0DA1EA  func  update_object_path_0DA1EA  # steps an object along a 100-step path from two delta tables, then calls a setup routine
+0DA516  func  increment_byte_0a_toggle_bit7  # increments byte at A2+0xA; if low 7 bits >= 13, toggles bit 7, then tails to 0DB222
+0DA838  func  scale_object_byte_by_10  # reads signed byte at A2+0xA, times 10, sets A0=0xBFFFE, calls sub_0DA84C
+0DA8A2  func  check_counter_against_object_field  # compares word at FF0062 with negated object field 6, branching accordingly
+0DA8B8  func  scale_object_byte_a_by_10  # reads byte at object+0xA, times 10, sets A0 to table 0BFDC4, continues at 0DA84C
+0DA8F0  func  branch_if_ff005e_less_than_field  # compares FF005E with (A5+6), branches to 0DA86E if less
+0DA8FE  func  set_d0_1_and_call_0da900  # sets D0 to 1 and calls 0DA900, then returns
+0DA900  func  update_angled_object_movement  # moves an object using its angle and speed, handling collision-related state changes.
+0DACF6  func  compare_global_to_negated_object_field  # Compares signed word FF0062 with negated (A5)+6, branching to 0DAD48 or 0DAD0A
+0DAD0A  func  clear_d0_then_branch  # clears D0 then branches to 0DAD4A
+0DAD1C  func  lookup_table_c0238_by_byte_0a  # reads A2+0xA, times 10, indexes C0238, checks word +6 against FF005E
+0DAD48  func  set_d0_one_and_call_next  # sets D0 to 1, then calls the next function
+0DAE92  func  update_object_path_0DAE92  # steps object x/y along two byte delta tables for 100 frames
+0DAEF0  func  move_object_right_until_threshold  # increments x by 4, calls 0DBF62 with x and y-12, triggers state change at x>=847
+0DAF4A  func  set_object_fields_0daf4a  # decrements A3+8 by four, calls 0DBF62 with adjusted words, and conditionally sets fields at A2+9 and A4+1E.
+0DAF80  func  make_object_with_sound_and_state  # makes animated object C0D90 at A3's x/y, sets A2 state 0x0D, plays sound 0x4B
+0DB1AE  func  object_button_input_response  # gates controller-input responses on object fields and pad masks, calling the handler with modes 2 or 3.
+0DB222  func  update_animated_objects  # iterates active animated objects and dispatches by state byte at offset 0xE
+0DB234  func  update_player_animation_state  # updates player animation and action state, selects animation data, and applies effects to the player and related objects
+0DB654  func  clear_vram_row  # fills 32 words (64 bytes) of VRAM with zero at address from FFA670
+0DB744  func  init_player  # initializes current player object and creates its animated object from definition C0B14
+0DB7CC  func  set_player_animation  # sets the current player's animation from a definition table, stores timing bytes, resets its frame count, and sets a flag
+0DB836  func  update_player_facing  # Sets the player's mirror flag from the signed field at +0x1E when enabled, clears +0x0C, then calls sub_0DB7CC(0, 8).
+0DB880  func  kill_current_player  # if the current player isn't already dying (byte 2E = 40), start its death and set a 60-frame timer
+0DB8CC  func  set_player_field_0c_and_timer  # writes 0x101 to player field 0x0C, calls sub_0DB7CC(5,6), sets FF1FA=0x78
+0DBCEA  func  set_object_words_from_longs  # adds 8000h to object's longs 16,1A and stores as words 26,28
+0DC0D8  func  update_player_screen_position  # computes player's camera-relative screen x/y, clamped to level bounds and scaled by arg3, into FF0086/FF008E
+0DC6CC  func  set_d0_from_ff75b0_and_call_0dc6d8  # loads word FF75B0 into D0, sets A0 to C06CE, calls 0DC6D8
+0DC6D8  func  copy_byte_to_a6_minus_f  # copies the byte at (A0+D0.w) to A6-0F, then continues at 0DC710
+0DC6E0  func  run_0dc6d8_with_table_c06d2  # loads word FF75B0 into D0, points A0 at C06D2, then branches to 0DC6D8
+0DC6EE  func  read_ff75b0_then_jump_0dc6d8  # loads A0 with C06D6 after reading FF75B0, tail-calls 0DC6D8
+0DC70A  func  set_byte_minus_f_to_2  # writes byte 2 to offset -15 from A6, then continues at 0DC710
+0DC7B0  func  call_0d560e_then_0dc7b6  # calls 0D560E, then runs the code at 0DC7B6
+0DC7B6  func  discard_stack_long_and_jump  # discards one long from the stack, then branches to 0DCA24
+0DC924  func  call_with_arg_9_0dc924  # pushes 9 on stack then tail-calls sub_0DC928
+0DC930  func  wait_12_frames  # pushes 12 on the stack and enters the loop at 0DC928
+0DC936  func  call_0dc928_with_6  # pushes 6 on the stack then tail-calls 0dc928 with that argument
+0DCA24  func  update_object_state_0DCA24  # dispatches on object mode 0-8 via jump table, handles mode 9 specially
+0DCACA  func  set_field_1c_then_0dcb3c  # stores 0x1AE0 at (-$1C,A6), then branches to 0DCB3C
+0DCAD2  func  set_local_word_and_jump_0dcad2  # stores 11eb in a local then continues at 0dcb3c
+0DCADA  func  set_field_and_continue_0dcada  # stores 0x8F5 at A6-0x1C, then branches to 0DCB3C
+0DCB3C  func  scale_object_fields  # scales two object fields by a factor when a counter is at most 6
+0DCB98  func  either_pointer_nonzero  # returns 1 if A4 or A5 is non-null, else 0; restores saved registers and returns
+0DD1F6  func  check_a5_and_call_helpers  # if word at A5 is not positive, call 0DB836 and 0DBFC8(0x50, 0x4000), then continue to 0DD6E0
+0DD310  func  update_camera_y  # adjusts camera y FF55AA toward a limit or object's field 28, then updates the display
+0DD44E  func  decay_object_field_1e  # reduces object field +0x1E by one eighth; below 0x10000, sets a flag and requests an action, then may reduce it again
+0DD49A  func  integrate_object_motion  # adds velocity fields 1E/22 to position 0E/12, then copies position to previous 16/1A
+0DD4CC  func  update_flipper_angle  # adjusts a flipper's angle by ±4 when its state flags allow, then runs follow-up updates.
+0DD65A  func  spawn_object_when_counter_set  # if (A4) high byte is nonzero, calls routines with arguments 6 and 9, sets A2+0xD and A5, then clears (A4)
+0DD6CE  func  check_object_field_2e  # tests byte 2e of A3; calls 0DB8CC if zero, then 0DCDFE and 0DD6E0
+0DDB58  func  check_ff9988_then_continue  # tests word at FF9988, then runs on into 0DDB5E
+0DDB5E  func  branch_if_nonzero_0ddb5e  # branches to 0DDC46 when Z is clear, else falls through to 0DDB62
+0DDB62  func  increment_counter_ff55a0  # adds 1 to the word at FF55A0, then continues at 0DDC46
+0DDB6C  func  clear_mirror_and_set_state_5  # clears object mirror flag, calls 0DB7CC with 2 and 0x2C, sets (A5) to 5
+0DDB86  func  launch_object  # plays a sound, sets object velocity and a sprite flag, then continues its state machine
+0DDBEA  func  update_object_counters  # advances two fields; past a limit, calls a handler, resets them, and conditionally sets a flag.
+0DDC46  func  update_object_position  # adds velocity to object coordinates and copies related values to another structure.
+0DDC96  func  update_object_when_timer_passes  # if FFF214 nonzero and FFF214+12 > object height, call 0DBF62 with object field 40
+0DDCC4  func  update_camera_from_player  # follows player, clamps camera x/y to level limits, handles shake/scroll
+0DDE6C  func  make_level_flippers  # makes the level's flipper animated objects from its flipper table and count, and for level 3 sets up four slot pointers
+0DDF5A  func  set_object_animation_from_table  # sets object's frame pointer, frame time 2, counter 0 and bit 7 from C08DE tables
+0DDF9E  func  update_flippers  # checks each flipper's mirror state and player input, triggers its action, and plays a sound when activated
+0DE79A  func  format_number_with_commas  # formats a long (max 999999999) as decimal text with thousands separators into a buffer
+0DE816  func  append_padded_number  # formats a number into a buffer, pads the string with spaces, and appends it
+0DE87A  func  update_player_hud  # fills a digit record from the player's index and field 46, then calls 0DE816
+0DEAD2  func  negate_object_word_3e_to_44  # negates word at A2+0x3E into A2+0x44, then branches to 0DEB0A
+0DEAE4  func  negate_half_of_field_3e_into_44  # stores -(field 3E rounded up halved) into field 44, then continues at 0DEB0A
+0DEAF0  func  set_object_fields_42_44  # writes FFFF to words at object offsets 42 and 44, then runs on into 0DEB0A
+0DEBB4  func  add_message_slot  # finds a free message slot at FF55AC, stores text and centers it
+0DF232  func  update_message_slot_0DF232  # advances message slot text state, widths and timed transitions.
+0DF2BA  func  set_d0_one  # sets D0 to 1, then calls 0DF2BC.
+0DF2BC  func  set_object_sprite_table  # stores D0 into object field 3A (sprite table pointer), then continues at 0DF522
+0DF2C4  func  load_a3_field_40  # reads word at A3+0x40 into D3 low half with flags, then jumps to 0DF522
+0DF2DA  func  check_object_state_0df2da  # Compares field 40 with D3; if equal and field C is zero, sets D0 to 2 and branches onward.
+0DF30A  func  decrement_object_field_44  # decrements field 0x44 by 1 or 2 based on field 0xC, then continues
+0DF320  func  update_object_state_timers  # Advances the timer and counter; sets state when the counter reaches its target, then calls sub_0DF522 on every path.
+0DF358  func  update_object_state_counter  # increments 44; at 3, sets 3A to 2 if C is zero, otherwise 1, resets 44 to 2, calls sub_0DF522
+0DF458  func  read_word_fff210  # loads word FFF210 into D3, sets flags, then continues at 0DF45E
+0DF45E  func  clear_long_at_a3_0DF45E  # zeroes the long at A3 (both words), then jumps on into 0DF512
+0DF488  func  update_object_timer_0DF488  # Decrements the object's counter at +44 by 1 or 2 and compares it to -word at +3e.
+0DF4B2  func  draw_centered_text  # copies string to buffer, centers it by its width, then draws it
+0DF50E  func  load_object_field_40_into_d3  # reads word at (A3+40) into D3, sets flags, then continues into 0DF512
+0DF522  func  set_d0_word_from_d3  # copies D3's low word into D0 (setting flags), then runs on at 0DF524
+0DF524  func  call_0ded78_then_0df52e  # passes D0 and A3 to 0DED78, then continues at 0DF52E
+0DF52E  func  update_message_slot_0DF52E  # advances a message slot's state machine and timer, drawing it when idle
+0DF5E0  func  set_object_field_3a_to_1  # Stores 1 in long at offset 0x3A of object A3, then continues at 0DF5E6.
+0DF5E6  func  set_a2_field_1e_from_a4  # copies word at A4 to A2+0x1e, sets flags, continues at 0DF5EA
+0DF5EA  func  set_object_field_1c  # copies word at (A5) into object field 1C, then continues at 0DF5EE
+0DF5EE  func  set_a2_field_1a_from_pointer  # Copies the word pointed to by the long at -8(A6) into A2's field 1A, then continues at 0DF5F6
+0DF5F6  func  set_object_field_18  # stores the word a pointer holds into offset 18h of the object in A2
+0DF5FE  func  set_state_3_and_flag  # sets FF5734 to 3, then shared tail: tests (A3), calls 0DEC6C if zero, sets FF559E bit 3
+0DF640  func  clear_long_at_a3_0DF640  # clears the 32-bit value at A3 to zero, then falls into 0DF642
+0DF642  func  copy_object_word_4_to_18  # Copies the word at object offset 4 to offset 18 and sets condition flags from its value.
+0DF648  func  copy_a2_field_4_to_1a  # copies word at A2+4 to A2+1A with flags, then runs 0DF64E
+0DF64E  func  copy_object_field_4_to_1c  # copies word at object+4 to +1C, sets sign/zero flags from it, then continues at 0DF654
+0DF654  func  copy_object_field_4_to_1e_0DF654  # copies the word at object +4 to +1E, then continues into 0DF5FE
+0DF68E  func  copy_object_field_4_to_1e_0DF68E  # copies the word at object offset 4 to offset 1E, sets condition flags, then calls 0DF694
+0DF694  func  set_game_state_4  # writes 4 to FF5734, calls 0DEC6C if the long at A3 is zero, and sets bit 3 of FF559E
+0DF6DA  func  clear_long_at_a3_0DF6DA  # clears the long at A3, then runs on into 0DF6DC
+0DF6DC  func  set_object_fields_from_4  # copies the object's word at +4 into its words at +18, +1A and +1C
+0DF7A6  func  load_hud_tiles  # Loads HUD tiles into VRAM and sets HUD parameters.
+0DF85A  func  set_hud_number_position  # clears a 120-byte buffer, stores a coordinate and its triple plus another coordinate, then updates the display
+0DFC74  func  dispatch_index_0dfc74  # switch on D4-1, 69 word offsets at DFC8C, else 0E193E
+0DFD30  func  run_level  # calls setup callbacks with fixed values, then enters the level routine
+0DFD8E  func  call_via_a3_discard_args  # calls the function in A3, drops 18h bytes of stack, then falls into 0DFD94
+0DFD94  func  set_d2_and_call_a4_0DFD94  # sets D2 to 50000, pushes 0x5C, calls A4, then continues at 0E193E
+0DFD9C  func  show_two_messages  # shows message BE48A then tail-calls 0DFDD6 to show BE49E
+0DFDEA  func  show_message_and_wait_0DFDEA  # calls A3 with message args if D3 set, then waits 18 frames and jumps
+0DFE2E  func  init_hud  # pushes 0 and 1, tail-calls sub_0DFD5C; likely HUD initialization, exact purpose uncertain
+0DFE92  func  award_bonus_and_show_message  # adds 50000 points, shows message if D3 set
+0DFED4  func  call_a3_with_2_then_0d567e_0e193e  # calls A3 with 2, then 0D567E with 0x11, tail-calls 0E193E
+0DFEE6  func  show_message_then_continue_0DFEE6  # if D3 set, calls A3 with text 0BE50A; sets D2=15000 and jumps to 0E193E
+0DFF12  func  show_message_and_call_a4  # if D3 set shows message then calls A4(0x39) and jumps to 0E193E
+0DFF68  func  show_message_and_wait_0DFF68  # shows text at BE534 if D3 set, plays sound 106, waits 25000
+0DFF98  func  show_message_if_d3_set  # if D3 is nonzero, calls A3 with text BE540; then sets D2 and continues
+0DFFE0  func  show_game_over  # shows the GAME OVER message with palette 6 at 2,5,40,3
+0DFFFA  func  run_callback_play_sound_and_delete_object  # calls A3, plays sound 0x12, then tail-calls 0E193E
+0E002A  func  show_message_or_delay  # shows message 0BE57E through A3 when D3 nonzero, else sets D2=50000
+0E004E  func  show_message_and_wait_0E004E  # if D3 is set, shows message 0xBE58E, sets D2 to 0x3A98, calls A4(0x6A), then continues at 0E193E
+0E00C6  func  show_message_and_delay_0E00C6  # shows text at BE5C2 if D3 set, then delays and continues
+0E00F2  func  show_message_and_play_sound_0E00F2  # Tests D3, shows a message, plays GEMS sound, then calls A4.
+0E0126  func  make_object_0e0126  # calls A3 with definition 0xBE5DE if D3 is set, then calls A4 with 0x49
+0E0150  func  show_message_when_d3_set  # shows message BE5F0 if D3 set, sets D2, calls A4(6A), tail-calls 0E193E
+0E0222  func  call_sub_0e000a_with_be644  # pushes data address BE644 then tail-jumps to sub_0E000A
+0E0242  func  set_animation_4  # pushes 4 and calls the function at 0E0246
+0E0254  func  show_message_if_d3_nonzero  # If D3 nonzero, calls A3 with six args (text BE660); then calls A4 with 0x73 and jumps 0E193E.
+0E0280  func  dispatch_on_d3  # if d3 is zero plays sound 0x11 then tail-calls 0e193e, else tail-calls 0dfece with 50, 0, 0xbe672
+0E0296  func  branch_on_d3  # if D3 is zero calls 0D567E with 0x11, then 0E193E; otherwise calls 0E02AE with 3, 10, 6, and 0xBE67E.
+0E02E4  func  call_function_ptr_if_d3_set  # calls A3 with args (7,0,4,30,3,0xBE6A0) when D3 nonzero, then sub_0E193E
+0E0320  func  call_object_handlers  # calls A3, then A4 with 0x38 and D2=3A98, then jumps to 0E193E
+0E0334  func  show_message_and_set_timer  # if D3 set, shows message 0BE6BC; sets D2=15000 and calls A4 with 43
+0E0362  func  wait_5000_frames  # sets D2 to 5000 then jumps to 0E193E, likely a delay
+0E036C  func  show_message_wrapper  # pushes six arguments, with text at 0BE6CA, then calls 0E0384 to display the message
+0E0384  func  call_a3_then_set_delay  # calls A3, sets D2 to 200000, plays sound 18, jumps to 0E193E
+0E0394  func  call_0dfe74_with_args  # pushes 0xbe6dc, 4, 0x28 then tail-calls 0dfe74
+0E03A6  func  show_message_and_wait_0E03A6  # shows message at BE6EA in slot 2, waits 48 frames, then continues
+0E03C6  func  show_message_be702  # pushes six arguments (text 0BE702), calls through A3, then continues at 0E193E
+0E03DC  func  make_two_animated_objects_0E03DC  # calls the object maker in A3 twice with two definitions
+0E046C  func  setup_animated_object_call  # Tests D3, pushes args, calls A3 function to set up an animated object
+0E053C  func  call_sub_0e0544_with_60_and_6  # calls sub_0E0544 with arguments 60 and 6
+0E0548  func  call_0e054c_with_5  # pushes 5, calls sub_0E054C, then returns.
+0E054C  func  call_then_delay_and_continue  # calls A3, waits via 0D567E(18, D2=100000), then tail-calls 0E193E
+0E059C  func  format_and_show_message  # formats text C14BC with a value (FF10A4 or FFEDAA by D4), then shows it as a message
+0E05DE  func  call_a3_then_call_d567e  # calls function in A3, then calls $D567E with D2=50000 and arg 18, jumps to $E193E
+0E061A  func  show_message_if_d3_0E061A  # if D3 nonzero, calls A3 (likely show_message) with text $BE7E8; else skips to 0E193E
+0E063C  func  call_a3_with_six_args_0E063C  # pushes 5,2,0,40,3,$BE7F6 then calls A3, cleans 24 bytes
+0E0658  func  call_sub_with_constants_0e0658  # pushes 0xbe80a, 1, 0, 1 and calls sub_0e0668
+0E0668  func  call_0e0670_with_2_5  # pushes 2 then 5, calls 0E0670, then returns.
+0E0670  func  call_callback_then_play_sound_and_fade  # calls A3, plays sound 0x15, then tail-calls 0E193E
+0E06C4  func  call_a3_with_args_0e06c4  # pushes 6 args incl. BE84A, calls A3, sets D2=3A98, tail-jumps to 0E193E
+0E06DE  func  show_message_when_d3_nonzero  # if D3 is nonzero, calls A3 with text BE85A and arguments 3, 0, 4, 60, 2
+0E0706  func  call_a3_with_args_if_d3_set  # Calls A3 with six arguments when D3 is set, then runs 0E193E.
+0E0724  func  conditional_call_0e0736  # if D3 is nonzero, calls 0E0736 with arguments 0x3C, 3, and 0xBE888
+0E0736  func  call_with_args_3_0_4  # calls function pointer in A3 with args 3,0,4 then continues
+0E0746  func  set_d2_and_call_a4_0E0746  # sets D2 to 15000, calls function pointer A4 with 64, then jumps to 0E193E
+0E0750  func  show_message_and_delay_0E0750  # shows message via A3 when D3 set, then calls A4, waits 5000 frames
+0E07E4  func  show_conditional_message  # if D3 is zero sets D2 and calls 0E193E, else draws text at 40,6 from 0BE8D6
+0E07F8  func  call_handler_and_wait  # calls A3 with 0, 0, 3, then delays via 0E193E
+0E0828  func  show_message_and_wait_0E0828  # shows message at BE910, then waits 25000 with arg 78
+0E0856  func  show_message_and_wait_0E0856  # if D3 is nonzero, calls A3 with message arguments; sets D2 to 50000, calls A4 with 0x4E, then branches to 0E193E
+0E087E  func  show_message_if_d3_0E087E  # If D3 nonzero, calls A3 (show_message) with fixed args, then returns.
+0E089A  func  show_message_if_flag  # If D3 is set, shows message 0xBE93A via A3, then returns.
+0E0972  func  show_formatted_message_0E0972  # formats a string (D4==0x23 picks one) and shows it via six-argument message call
+0E09C0  func  make_options_object_0E09C0  # creates an animated object from definition 0xBE9B8 at (6,10)
+0E09D0  func  call_0e05de_with_7_0  # pushes 0 then 7 and tail-calls sub_0E05DE with those arguments
+0E0A58  func  make_options_object_0E0A58  # pushes (1, 50, 4, def 0xBE9C4) and calls sub_0E0A6A; likely options-screen object spawner.
+0E0A6A  func  call_a3_and_a4_with_args  # pushes 0 and 3, calls A3, sets D2=25000, pushes 123, calls A4, then jumps to 0E193E
+0E0A98  func  show_formatted_number_message_0E0A98  # formats byte from FF5751/FF5752 and shows it as a message
+0E0B18  func  format_text_with_choice  # formats A5 using format 0xBEA12 and one of two strings chosen by D4==5
+0E0B40  func  call_a3_with_five_args  # pushes 0 90 3 1 6 calls A3 then continues at 0E193E
+0E0B4E  func  load_options_level_data  # pushes 0BEA28 then tail-calls 0E0B40; likely loads options data
+0E0B56  func  show_player_name  # formats SONIC/TAILS name into buffer and draws it
+0E0BF2  func  call_a3_then_set_d2  # pushes three args, calls a3, sets d2, then continues into the next function
+0E0C08  func  call_a4_with_60_then_30  # calls A4 with 60h and 30h, then tail-calls 0E193E
+0E0C14  func  show_message_and_play_sound_0E0C14  # Shows text 0xBEA96 and plays sound 0x60.
+0E0C80  func  show_message_play_sound_and_wait  # shows text $BEAC0, plays sound $4E, then waits
+0E0CBE  func  show_message_and_run_callback  # if D3 set, shows message 0xBEAEC via A3, then calls A4 with 0x41
+0E0CF0  func  make_options_level_select_text  # creates the LEVEL SELECT option text object at 4,0 with definition 0xBEB02
+0E0D1E  func  show_formatted_number_message_0E0D1E  # formats word at FF5756 and shows it as a message
+0E0D4A  func  call_0dfffa_with_arg_5  # pushes 5, then tail-jumps to 0DFFFA
+0E0D52  func  show_message_and_wait_0E0D52  # calls A3 with six args, sets D2=5000, branches to 0E0C08
+0E0D7A  func  make_options_object_0E0D7A  # builds an object from 0BEB4C via A3, calls A4 with 0x60, then continues at 0E193E
+0E0D9A  func  set_d2_and_call_a4_with_39  # sets D2=5000, calls A4 with 0x39, then jumps to 0E193E; exact purpose uncertain
+0E0DA4  func  make_object_0E0DA4  # creates an object from definition 0BEB58 with arguments 2, 40 and 5
+0E0DBA  func  make_options_cursor  # spawns the options menu cursor at fixed position (6,1)
+0E0DD0  func  make_two_objects  # calls A3 with args, then a helper, to create two objects
+0E0E4C  func  show_options_message  # sets up six arguments and jumps to a message display routine
+0E0E6A  func  call_function_and_wait  # calls A3 with 6 args, then delays via sub_0E193E with D2=25000
+0E0E80  func  call_a3_with_six_args_0E0E80  # pushes six long arguments, calls function pointer A3, discards them, then calls sub_0E193E
+0E0E90  func  call_0e09d0_with_constants  # Pushes constants 0xBEBF6, 1, 0x28, 1 then tail-calls 0E09D0.
+0E0EA6  func  call_a3_with_six_args_0E0EA6  # pushes six args, calls A3, sets D2=0xC350, jumps to 0E193E
+0E0ED6  func  call_indirect_a3_then_a4  # calls A3, then A4 with 0x37, then continues at 0E193E
+0E0EE0  func  call_a3_with_six_args_then_a4  # Pushes 0xBEC2C and five constants, calls A3, then A4 with 0x39.
+0E0F02  func  show_message_and_wait_0E0F02  # pushes text BEC38, calls show_message via A3, then waits via A4 with 0x77
+0E0F92  func  show_two_messages_then_wait  # calls (A3) twice with 6 args (text pointers 0xBEC7C, 0xBECA6), then delays 500000
+0E0FCE  func  call_a4_then_0d567e_then_0e193e  # calls A4(0x6a), 0D567E(0x15), then tail-calls 0E193E; purpose unknown
+0E1018  func  make_object_0E1018  # pushes definition BECE8 and five args, tail-calls object creator 0E09AC
+0E1034  func  pause_game  # shows PAUSE message and plays sound when D3 set, then plays sound and jumps to pause state
+0E108C  func  dispatch_by_index  # dispatches indices 0–99 through a word-offset table; other indices go to 0E193E
+0E11A8  func  copy_d0_to_d2  # copies D0 into D2, sets flags, then continues at 0E11AA
+0E11C6  func  call_0e11dc_with_constants  # pushes constants 3, 1, 0, 50, 0, and BED28, then calls 0E11DC.
+0E11DC  func  scale_ff5892_value  # scales the signed word at FF5892 by 1875, then calls 0E11FA
+0E1200  func  increment_counter_and_format_message  # increments word at FF5892, formats text with BED3C, calls sub_0E0D4A
+0E1292  func  compute_ff5892_times_625  # reads word FF5892, sign-extends, multiplies by 625, then jumps to 0E11FA
+0E1336  func  call_sub_e1170  # pushes data address 0BEDB2 then tail-calls sub_0E1170
+0E1358  func  show_message_and_call_callback  # calls A3 with text BEDD8, divides FF5892 by 50000, then calls A4 with 0x37
+0E13E6  func  make_options_animated_object  # makes an animated object from definition 0BEE08 at place (4, 30) via A3
+0E13FE  func  make_animated_object_bee1c  # pushes fixed args (definition 0BEE1C, 6, 1E, 0, 0, 3) then jumps to 0E0320
+0E14AC  func  award_extra_life  # divides score FF5892 by 50000, shows a message via A5, then makes an object
+0E14F8  func  call_two_callbacks_then_jump  # calls A3 with 7, A4 with 0x6A, then jumps to 0E193E
+0E1506  func  make_options_sonic  # creates the options screen's Sonic head object from definition BEE80
+0E151E  func  show_formatted_message_0E151E  # formats a message with format_text and shows it, choosing text by D4 == 0x5F
+0E1560  func  call_0e0246_with_arguments  # Passes five constants and a data pointer to 0E0246.
+0E1672  func  make_object_from_beef0_template  # copies 9-byte template from BEEF0, scales FF5892, tail-calls 0E0ED6
+0E1716  func  make_options_object_0E1716  # calls 0DE996 then creates object from definition 0BEF0E at (6,30) with flags 0
+0E17AC  func  call_a3_with_fixed_args  # calls sub_0DE996, then A3 with arguments 4, 0, 3, 0x5A, 0, and 0xBEF78
+0E17D0  func  show_message_slot_6  # calls show_message with slot 6, text at BEF98, then sub_0E193E
+0E181A  func  make_player  # pushes player definition 0BEFD8 then calls sub_0E1820
+0E182E  func  tail_call_0e1820_befec  # pushes 0xBEFEC then tail-calls 0E1820 with that argument
+0E193E  func  set_ff027c_after_delay  # calls 0D3E70, then stores D4 at FF027C before restoring registers and returning.
+0E1956  func  show_player_status  # formats and shows the current player's number and remaining ball count texts.
+0E1A48  func  init_level_0E1A48  # clears object arrays and level state, then dispatches to the level's setup by FF75B0
+0E1AA6  func  call_0e4dd0  # calls sub_0E4DD0 and returns; a thin wrapper
+0E1AAE  func  call_0f10c2  # calls the function at 0F10C2, then returns
+0E1AB6  func  call_0e9dc0  # Calls 0E9DC0 and returns; no other work.
+0E1ABE  func  start_object_animation  # sets object animation id, frame, clears timer, sets pointer from level table
+0E1B00  func  dispatch_ff75b0  # Dispatches values 0–3 from FF75B0 through a jump table; otherwise returns D2's low byte
+0E1B32  func  call_0e5138_byte  # calls sub_0E5138 and returns its byte result in D0
+0E1B46  func  call_sub_0ea2ba_return_byte  # saves A2, calls sub_0EA2BA, returns its byte result in D0
+0E1B5A  func  set_level_objects_animation  # makes or ends an animated object on every object of the current level, storing the flag in object+8
+0E1CAE  func  start_bonus_stage_0E1CAE  # shows a message, plays a sound, places the player relative to an object, and sets state and timer
+0E2018  func  show_object_message  # Formats object's byte 9 and shows it as a message.
+0E2358  func  dispatch_object_state_0E2358  # jumps to one of four handlers by object field 9 (0-3), bails when field 8 is zero or state over 3
+0E2382  func  update_lift_movement  # moves object vertically by signed speed, toggles mirror at limit, counts wait timer
+0E24B4  func  set_object_direction_and_mirror  # from the sign of A4+1E, sets A2's direction byte to 3/-3 and A3's mirror bit, then continues at 0E2F78
+0E251E  func  dispatch_object_byte_9  # jumps through table 0E2540 by object byte 9, only if byte 8 set and byte 9 <= 3
+0E2548  func  set_object_random_motion  # sets field 9 and randomizes fields A, B and C; negates A when A3's field 22 bit 14 is clear, and B when its old value is positive.
+0E2690  func  set_random_speed_and_mirror  # clears field C, sets timer 3, random speed 3-5, randomly mirrors and negates speed.
+0E26C4  func  update_object_motion_0e26c4  # adds signed byte delta to object field, counts to 110 then calls 0E4A1A
+0E26E8  func  dispatch_object_state_0E26E8  # switch on signed byte 8 of the object at A2, 1-8, jumping through the table at 0E270C
+0E271C  func  make_kept_animated_object  # sets field 8, plays sound 0x35, creates an animated object from C0DFC at 0x300, 0x740
+0E27BE  func  make_object_pair_after_delay  # counts object's field 0xC to 150, then makes two animated objects from C0FB8 beside it
+0E286E  func  set_player_sound_and_state_0e286e  # checks FF573C bits 4-6, plays sound 36/37, sets byte 8 to 6
+0E2948  func  update_object_timer_0E2948  # increments field 0x0C; at 120 calls a helper, decrements field 0x09, then branches by its sign
+0E2A0A  func  update_object_path_movement  # Adds offsets from two 100-entry tables to object x/y; ends path at 100.
+0E2B28  func  update_object_state_0E2B28  # object step: waits on timer field C, dispatches on state byte 9 (5 calls 0E3056, 3 clears byte A)
+0E2B66  func  dispatch_object_state_0E2B66  # dispatches states 1–6; sends state 0 to 0E2F78 and changes other states to 7.
+0E2BEE  func  decrement_counters_and_step  # subtracts 2 from two word counters, bumps a byte counter, then continues at 0E2F78
+0E2C3A  func  set_d5_then_jump_0e2c58  # sets D5 to 300, then branches to 0E2C58
+0E2C40  func  set_d4_d5_0e2c40  # sets D5 to 600 and D4 to 5F49, then continues at 0E2C5C
+0E2C58  func  set_d4_6000  # loads 6000h into D4, then continues into 0E2C5C
+0E2C96  func  dispatch_object_state_0E2C96  # dispatch on byte at A2+8, values 1-6 via jump table, else 0E2F78.
+0E2D06  func  object_timer_state_change  # decrements an object's timer; when nonpositive, sets state 3 and timer 0x22, sets a global timer to 0x1e, and calls a routine with 0x69.
+0E2D92  func  set_object_fields_0e2d92  # if FF9988 clear, sets object fields and 1E timer, calls helpers, then continues
+0E2E0A  func  countdown_clear_flag_when_done  # decrements byte at A2+9; when not above zero, clears byte at A2+8; both paths continue at 0E2F78
+0E2E1A  func  clear_object_byte_9_if_flag_zero  # clears byte 9 of A2 when FF573C & 7070 is zero, then runs 0E2F78
+0E2F78  func  dispatch_object_state_handlers  # loops over object list, jumps to handler by object byte at +0xE
+0E2FB2  func  clear_game_state_bytes  # clears bytes at FF027E-FF0284, FFF1F8, FF7845 and FF559C
+0E3056  func  set_object_state_3_and_animation  # clears field 0xC; if field 9 is not 3, sets it to 3 and calls 0E1ABE with field 0, 8, 2.
+0E312A  func  select_variant_by_field_20  # chooses 3 or 4 from the object's word at offset 20, calls two helpers
+0E4936  func  end_object_animations  # if the object's byte +8 is set, clears it, ends both its animated objects; 2 also calls 0E482A
+0E4A1A  func  end_object_animation  # if byte 8 is set, clears object bytes 8–A and word C, clears FF0286, and ends its animation
+0E4BEA  func  call_0e4c1a_with_338_2c0  # pushes 338h and 2C0h and tail-calls sub_0E4C1A with them
+0E4BF4  func  call_0e4c1a_with_800_and_728  # pushes 800 and 728, then tail-calls 0E4C1A
+0E4BFE  func  call_0e4c1a_with_310_2e8  # pushes 0x310 and 0x2E8, then tail-calls 0E4C1A
+0E4C08  func  push_args_300_and_2f8_then_call_0e4c1a  # pushes 300h and 2F8h as arguments, then tail-calls the routine at 0E4C1A
+0E4C1A  func  make_two_animated_objects_0E4C1A  # creates two animated objects in consecutive slots, advancing FF5234 by two up to 250
+0E4F60  func  push_word_to_list  # appends D2 as a word to the list at FF5498 and increments the counter FF5686
+0E4F78  func  append_word_to_two_lists  # appends D2 to two indexed word arrays, incrementing each array's counter.
+0E4FAA  func  append_word_to_list_0E4FAA  # stores D2 into the word table at FF5498 at index FF5686, then increments that counter
+0E4FC4  func  append_word_to_ff589c  # if object field 1C is set, store D2 at FF589C indexed by counter FF5688, then increment it.
+0E4FE4  func  set_up_lava_powerhouse  # spawns animated objects and 67 rings, then calls more spawners for Lava Powerhouse
+0E509C  func  hurt_player_0E509C  # sets the player's hurt state, resets a field, sets a negative movement value, and plays sound 0x66
+0E52E0  func  set_object_fields_0e52e0  # clears field 0x1E, sets field 0x22 to FFFB0000 when FFAB7C is nonzero; otherwise calls 0E5E24.
+0E5328  func  call_sub_0db7cc_return_1  # calls sub_0DB7CC, cleans 8 bytes of stack, then returns 1
+0E544C  func  call_0d560e_return_one  # calls 0D560E, then returns 1 in D0
+0E5478  func  call_0dfae0_and_return_1_0E5478  # calls sub_0DFAE0, discards its return, then returns 1 via shared epilogue
+0E555C  func  player_enter_object  # marks target active, unmirrors player animation, places player 80 pixels above it, and clears player motion fields
+0E55B4  func  check_proximity_trigger  # Checks vertical proximity, shows the object's message once, and starts associated actions.
+0E5D22  func  update_launcher_state  # runs a three-stage state machine making animated objects and setting launch velocity
+0E603E  func  check_ball_object_collision  # checks the ball's 24x24 box against object bounds and handles overlaps of types 29 and 20
+0E636C  func  dispatch_by_byte_0e  # switches on the byte at +0xE of the object A2 points at, through two tables
+0E63B2  func  test_a5_table_entry_indexed_by_a2_field_10  # Tests the long at A5+0x32 indexed by A2's signed field 0x10 times 4.
+0E63C0  func  jump_on_a2_byte_0e  # dispatch through a 40-entry jump table by the signed byte at A2+0E
+0E63C2  func  object_state_dispatch  # sets object flag then jumps to handler by byte at +0xE (0-39)
+0E63CA  func  dispatch_object_state_0E63CA  # Routes zero +0x10 to sub_0E63C2; otherwise dispatches state indices 0–39 through a table.
+0E63DA  func  dispatch_object_state_0e63da  # sets word at A0+4 to 15, then jumps on A2 byte 14 via table 0E6400
+0E6450  func  test_object_field_10  # branches to 0E64DC when the word at offset 16 of A2 is non-zero
+0E6458  func  append_word_to_list_0E6458  # appends D3 to the word array at FF5498, then increments the count at FF5686
+0E6470  func  push_word_to_ff5498  # stores D3 in the word array at FF5498, indexed by counter FF5686, which it then increments
+0E648A  func  append_word_to_list_0E648A  # appends D3 as a word to the array at FFF10C, indexed by the counter FFF1E8 it increments
+0E64A2  func  add_to_object_lists  # Appends D3 to FF5498 and, if A2+0x1C is nonzero, to FF589C.
+0E64DC  func  init_toxic_caves_objects  # makes Toxic Caves' animated objects, rings and decorations from tables
+0E688E  func  call_0dfae0_and_return_1_0E688E  # calls 0dfae0, then returns 1
+0E693E  func  set_d4_flag_12  # sets bits 1 and 4 in D4, then calls sub_0E6942
+0E7146  func  check_player_collisions  # scans objects for overlap with player's 24x24 box, calls handler, returns 1 if handled
+0E738C  func  check_flipper_collision  # finds closest flipper collision for ball and responds; uncertain exact role of called helpers
+0E74D8  func  is_pointer_in_table  # returns 1 if argument is one of 8 longs at C323E, else 0; 0 if FF9980 set
+0E7510  func  check_pointer_in_table  # returns 1 if argument matches one of 4 longs at C325E, when FF9980 set
+0E7548  func  init_object_animation_pair  # calls 0E1ABE for pointers at offsets 0 and 34, then sets bytes 8 and 42 to 1.
+0E98C0  func  make_object_animated_once  # creates the object's animated object once, then runs common setup
+0E992E  func  clear_flag_and_end_two_animated_objects  # clears byte 9 and ends animated objects at fields 0 and 22 via 0E1ABE
+0E9968  func  hurt_player_0E9968  # if object's flag set and not invincible, set player state $100A, call two functions, set timer 30
+0E99D2  func  reset_object_animations  # clears non-player object animation timers, marks some objects, then calls 0DC0D8 and sets a flag.
+0E9C9E  func  update_flag_ff02a9  # plays sound 1E while FF5745 set and FF8536 clear; draws once and sets FF02A9, else clears it
+0E9DC0  func  init_object_from_definition  # initializes a game object from the C4B40 definition, creates its animation if needed, then dispatches by object type
+0E9FE6  func  check_object_field10_table_entry  # if the long at A5+32 indexed by A2's field 10 is set, clear A2's byte 8; else run 0EA206
+0EA000  func  set_object_fields_0ea000  # sets bytes 8, 9, 0A of A2 to 1, 2, 20, then tail-calls 0EA20C
+0EA016  func  set_object_bytes_8_and_a  # sets object bytes 8 and A to 1 and 40h, then continues at 0EA20C
+0EA058  func  init_flipper  # initializes flipper object fields and timer, then jumps to its update
+0EA094  func  bonus_stage_init_0EA094  # sets object field 8 to 1, clears counters, sets FFABBA to 10, jumps to main loop
+0EA0CE  func  store_d2_at_ff5498_indexed  # sets A2+8, increments FF5686, stores D2 at FF5498+2*index
+0EA0EE  func  make_effect_animated_object  # makes an animated object near A2's object and keeps it at A2+4
+0EA206  func  set_a2_offset8_to_1  # sets byte at A2+8 to 1, then calls sub_0EA20C
+0EA20C  func  add_word_to_two_lists  # appends D2 to word lists at FF5498 and FFF10C, incrementing counters FF5686 and FFF1E8
+0EA240  func  make_showdown_objects_and_rings  # makes animated objects from a table, then the 62 showdown rings
+0EA550  func  set_object_flag_0ea550  # sets byte 9 of object A2 to 1, then branches to 0EAC92
+0EA5F2  func  call_0e1cae_return_1  # calls 0E1CAE with A2, then returns 1
+0EA618  func  draw_object_sprite_offset  # builds a sprite record at FF02AA from object x/y plus C4814 offsets and calls 0DBC60
+0EA662  func  check_d0_zero_else_continue_0ea662  # pops 12 stack bytes; jumps to 0EAC92 if D0 is zero, else continues at 0EA66C
+0EA6C6  func  check_object_box_collision  # checks object state 1, builds a box from table by y, tests collision and responds
+0EA9D8  func  make_animated_object_at_midpoint  # clears field 22, derives an address from A2's referenced object, and creates C0DCC midway between two positions
+0EAB28  func  make_animated_object_at_object_0EAB28  # creates animated object C0D90 using the pointed object's fields at +8 and +10, with two zero-valued arguments
+0EAB50  func  end_object_effect_random_animation  # ends kept animated object, plays sound, spawns random common effect animation
+0EAC10  func  set_object_fields_0eac10  # clears field 8, sets fields 9 and 10 to 2 and 1, then jumps to 0EAC92
+0EAD4A  func  set_up_two_objects_with_animation  # initializes two objects at FF9430/FF9452 and makes an animated object for the first
+0EAE4C  func  make_attached_animated_object  # creates a 32x32 animated object at an object's offset and stores it at +4
+0EAECE  func  make_two_animated_objects_0EAECE  # creates two 32x32 animations from C0D90 at positions derived from objects at FF9496 and FF94B8
+0EB5E0  func  clear_byte_at_a2_plus_8  # clears byte field 8 of A2, then continues into sub_0EB5E4
+0EB5E4  func  increment_object_word_at_0a  # reads pointer from (A2), adds 1 to word at +10, then calls 0EB5EA
+0EB5EA  func  set_object_field_12_and_clear_field_22  # stores the signed word at A0+0xA shifted 16 bits plus 0x1C0000 at A3+0x12; clears A3+0x22; increments byte A2+9.
+0EB60C  func  set_object_field_38_to_2  # sets object field 0x38 to 2 via 0DB7CC, then tail-calls 0EB5E4
+0EB6B2  func  set_object_fields_0eb6b2  # clears byte A2+9, sets byte A2+8 to 1, then continues at 0EB6BC
+0EB6BC  func  restore_regs_d2_a2_a3_and_return  # pops D2/A2-A3 from the stack, then returns to the caller
+0EB8CA  func  call_0eb6c2_then_0eb8ce  # calls 0EB6C2, then calls 0EB8CE; purpose unknown
+0EB8CE  func  discard_stack_long_and_continue  # adds 4 to A7, then tail-calls 0EB9A0, dropping one longword
+0EB95A  func  call_eb288_then_eb8ce  # calls 0EB288, then tail-calls 0EB8CE; purpose unknown
+0EBD16  func  clear_object_field_9  # clears byte at offset 9 of the object in A2, then branches to 0ED018
+0EBD50  func  update_object_timer_0EBD50  # counts down field 0C; when due, resets it, advances linked counters, and conditionally triggers two object actions
+0EBDCE  func  make_animated_object_sized  # If byte +0B is zero, creates definition C133C at its position (Y−2), stores it at +4, and sets size 0x30.
+0EBED4  func  set_object_fields_0ebed4  # selects values for two pointed objects by field 10, clears fields 0A, 0B and 2E, then calls 0ED018.
+0EBF12  func  dispatch_object_state_0EBF12  # when byte +9 is 1, clears it and jumps through a table indexed by word +C (1–21)
+0EBF80  func  set_object_field_12_from_word_0a_minus_30  # computes ((word at A0+0xA)-30)<<16 into A3+0x12, then continues at 0EC150
+0EBFA2  func  set_object_field_9_and_branch  # sets object field 9 to 1, then branches to 0EBF9A.
+0EBFE4  func  spawn_animated_object_at_ref  # creates C133C animated object at referenced object's coordinates (second minus 2), sets size 48, stores pointer in field 4
+0EC044  func  make_object_animated_from_definition  # creates a 32x32 animation from C0D90 at the referenced object's position, offsetting x by 8, and stores it at A2+4.
+0EC0FA  func  set_object_field_9  # writes byte 1 at offset 9 of the object A2 points to, then branches to 0EC150
+0EC130  func  add_offsets_to_linked_objects  # adds signed bytes to word at offset 0xA of two linked objects, then sets field 0xC to -1
+0EC150  func  increment_object_field_c  # adds 1 to the word at offset 12 of the object A2 points to
+0EC158  func  dispatch_object_state_0EC158  # dispatches on state byte (A2+9) via jump table; sets A3+1E delta when state>0
+0EC160  func  push_a2_and_tail_call  # pushes A2, calls 0EB504, then tails to 0ED018
+0EC1DA  func  clear_object_byte_8  # clears byte 8 of the object at A2, then runs on into 0EC1DE
+0EC1E4  func  make_object_0EC1E4  # sets the object's fixed-point X from its definition plus 28 pixels, clears field 22, and calls 0EC1FE.
+0EC1FE  func  increment_object_field_9  # adds 1 to byte at offset 9 of object A2, then continues at 0ED018
+0EC206  func  call_db7cc_with_2_and_56  # pushes 2 and 56, calls 0DB7CC, then branches to 0EC1DE
+0EC218  func  set_object_field_22  # writes 0xFFFE0000 to object field 0x22 at A3, then continues to 0EC220
+0EC220  func  decrement_object_counter_and_loop  # subtracts 2 from word at +0xA of object (A2) points to, then branches back to 0EC1FE
+0EC228  func  set_object_fields_0ec228  # stores a derived position in A3+12 and 0xFFF72000 in A3+22, then calls $DB7CC(0,2)
+0EC256  func  set_object_fields_0ec256  # clears byte at offset 9 sets byte at offset 8 to 1 then jumps to 0ED018
+0EC264  func  dispatch_object_state_0EC264  # Computes A3+1E when state is positive; dispatches states 0–15 through a jump table, otherwise calls sub_0ED018.
+0EC2B8  func  copy_byte_a_to_byte_8  # copies A2's byte at +0xA to +0x8, then tail-calls sub_0ED018
+0EC552  func  call_ec538  # pushes 2 then 12 and tail-calls sub_0EC538
+0EC55C  func  spawn_launched_projectile  # makes animated projectile, sets position/velocity based on x, plays sound
+0EC6D0  func  make_animated_object_between_objects_0EC6D0  # creates an animated object at the two objects' midpoint, shifted 8 pixels left
+0EC722  func  set_object_fields_0ec722  # calls sub_0DFAE0 twice, then sub_0D560E with 0x3A, then tails into sub_0ED018; purpose unclear
+0EC736  func  make_animated_object_between_objects_0EC736  # creates an animated object from C0DCC at the objects' averaged coordinates, with its x position offset by 8 pixels toward the left
+0EC88C  func  dispatch_a5_jump_table  # if object byte 9 is 1 and byte 11 is signed-greater than 9, dispatches A5's word through a table for values 0-5; larger values go to another handler.
+0EC906  func  increment_word_at_a5  # adds 1 to the word at A5, then continues into 0EC908
+0EC93E  func  call_with_1_then_0_and_jump  # calls 0DFAE0 twice with 1 and 0, sets A4=FF8E9C, jumps to 0EC906
+0EC95A  func  call_dfae0_twice  # calls 0DFAE0 with 1 then 0, sets A4 to FF8EBE, continues at 0EC906
+0ECA1C  func  set_object_common_sprites  # Assigns common sprite data, initializes object sprites, resets state bytes, and ends any existing animation.
+0ECAA0  func  make_animated_object_at_object_place  # makes animated object C0DC0 at A3+26/28 with flags 0
+0ECAC0  func  call_dfae0_with_3_then_0  # calls 0DFAE0 with 3 and 0, then calls 0ECAD4.
+0ECB42  func  call_0dfae0_with_1_then_0  # calls 0dfae0 with 1 then 0, then continues at 0ecb5c with a4=ff8f24
+0ECB82  func  set_object_animated_common_sprites  # sets object's animated sprite table to common_sprites, calls helper, clears flag, then continues
+0ECBE2  func  make_animated_object_at_object_0ECBE2  # makes definition C0DC0's animated object at A3's fields 26/28, counting it up
+0ECE3A  func  call_eb288_then_ed018  # pushes A2, calls 0EB288, discards it, tail-calls 0ED018
+0ECE44  func  call_0eb0ea_then_0ed018  # calls 0EB0EA, discards a saved A2 stack slot, then tail-calls 0ED018
+0ECFE2  func  count_to_44_and_spawn  # counts byte at +0xB to 44, then resets counters and calls 0E1ABE(object+0x22, 0x25, 1)
+0ED044  func  update_three_part_object  # handles three 0x22-byte records: hit flags, timer, sounds, and clears them
+0ED1B6  func  update_object_state_0ed1b6  # checks object fields 8, 9, 2a, 4c and calls 0E1ABE on three parts
+0ED47E  func  play_sound_if_requested  # clears a request byte, and if a word is zero, calls two sound functions.
+0EDA34  func  call_0eadcc_then_0eda90  # two-instruction wrapper: calls 0EADCC, then branches to 0EDA90
+0EDA3C  func  call_eaece_then_eda90  # calls 0EAECE, then tail-calls 0EDA90; purpose unknown
+0EDA7E  func  call_0ead4a_then_0eda90  # wrapper that calls 0EAD4A, then continues at 0EDA90
+0EDA86  func  clear_object_field_4  # Calls 0EAE4C, clears word at offset 4 of A4, then continues to 0EDA90.
+0EDA90  func  handle_ff40a4_ff40a5_flags  # clears each set flag, runs its corresponding 0xA9/0xA8 setup, and writes 10 to associated state fields.
+0EDB1A  func  reset_level_objects  # clear level flags, update 256 object records, end 32 animated objects, and run level setup
+0EDED0  func  spawn_object_in_player_area  # spawns an animated object at a random spot when the player is in range
+0EE0FE  func  update_path_object  # updates object coordinates from indexed movement tables, periodically calls a routine, then clears state fields
+0EE17C  func  make_flipper  # makes a flipper object: random variant, mirrored flag, animation, and its animated object
+0EE350  func  dispatch_byte_8_jump_table  # switches on signed byte at +8 of A2, values 1-20, via jump table; otherwise calls 0EF448
+0EE3F2  func  update_object_diagonal_movement  # moves object x by mirror flag, y down, checks x=736 then sets state
+0EE420  func  count_up_to_236_and_set_state  # increments A3+0xA; at 236, sets A2+8 to 4 and calls 0E1ABE(A3, 6, 2)
+0EE582  func  update_object_counters_0ee582  # increments counters, sets animation flags at the threshold, then sets state 6 and dispatches the object
+0EE5CE  func  update_vertical_platform  # moves a vertical platform and linked object, switching state at limits
+0EE646  func  update_elevator  # Moves elevator y by 3 between bounds, carries linked object, sets wait timer.
+0EE6A0  func  set_object_fields_0ee6a0  # clears word at +0xC, sets byte at +8 to 9, then calls 0EE6AA
+0EE6AA  func  set_random_object_velocity_and_mirror  # sets random signed speed (3-5) and mirror flag on object
+0EE702  func  update_oscillating_object  # steps object's word at A3+8 by 3 between 2C0 and 300, reversing direction
+0EE762  func  clear_flag_and_end_animated  # clears byte 8, calls 0E1ABE(A3,6,2); if byte 9 <= 1, ends animated object kept at A2
+0EE914  func  set_player_position_and_update_state  # Sets player at object's x,y-2, decrements timer, sets state 4 unless y > threshold.
+0EE982  func  end_animated_object_and_reset_state  # ends the animated object kept at field 4, resets the object's bytes, plays a GEMS command, continues at 0EF448
+0EEB26  func  set_object_fields_0eeb26  # clears word at +C, sets byte +9 to 3, then continues into 0EE6AA
+0EF042  func  update_mirror_flag_by_position  # compares A3's position with A2's, with hysteresis, to set or clear field 22 bit 14 (mirror)
+0EF252  func  update_object_onscreen_flag  # sets or clears bit 15 on both objects according to whether the object's bounds overlap the viewport.
+0EF3B2  func  update_animated_object_state  # advances an object state machine based on animation bytes, invoking callbacks on transitions
+0EF4E8  func  clear_game_flags  # Clears six game state flag bytes.
+0EF50E  func  object_set_state2_timer_and_sound  # sets object state byte 8 to 2, timer FFF1EA to 60, plays sound $54
+0F0948  func  init_the_machine_animated_object  # sets The Machine sprite table and conditionally creates a kept animated object from definition C112C
+0F0A10  func  update_player_effect_state  # checks player field 2E and spawns effect objects at A5+550/154/2CA/52E
+0F0AF6  func  set_player_respawn_state  # sets object fields and player state 6, places player, makes effect
+0F1068  func  set_timer_for_object_type  # sets FFEDA4 to 120 for object types 35h/38h, 30 for 36h/39h
+0F11D0  func  set_object_field_24_flags  # clears bit 15 and sets bit 13 of the word at A3+24h, then runs 0F11DC
+0F11DC  func  dispatch_on_a2_byte_e  # switches on signed byte at A2+0xE minus 6, values 0-25 via jump table
+0F122C  func  activate_flipper  # sets flipper active and its timer (0 or 90) by its mirror flag
+0F127A  func  make_object_animated_kept_mirrored  # makes a 16x16 kept animated object beside the object, mirrored by its field 20 bit 14
+0F12E2  func  set_object_animation_fields  # sets animated object bytes 2F/30, or calls 0E1ABE with 12, 5A
+0F1312  func  clear_object_byte_2f_and_call_0e1abe  # clears byte 2F of the object at (A2), then calls 0E1ABE with it, 20, 90
+0F132C  func  jump_by_command_byte  # Reads a command byte at A2+0xE, bounds-checks it, and jumps through a table.
+0F1386  func  dispatch_on_object_word_10  # Tests word at A2+0x10; calls 0F13D8 if nonzero, else 0F138C.
+0F138C  func  append_word_to_list_0f138c  # stores D3 in the word list at FF5498 indexed by FF5686, then increments it
+0F13A4  func  store_word_in_two_tables  # writes D3 into two tables at FF5498 and FFF10C, incrementing counters FF5686 and FFF1E8
+0F187C  func  bool_from_zero_flag  # returns 1 in D0 when the caller's zero flag is set, else 0
+0F1890  func  test_object_byte_2f  # loads object from (A3), compares its byte 2F with 1, then loops back to 0F187C
+0F189A  func  read_byte_ff40bd  # loads the byte at FF40BD into D0, then continues into 0F18AC
+0F18A4  func  load_byte_ff40be  # zero-extends the byte at FF40BE into D0, then calls sub_0F18AC
+0F18AC  func  set_a6_minus_6_d0  # stores D0 at A6-6 and calls sub_0F18B0
+0F2554  func  run_sega_logo_cutscene  # Loads cutscene tiles, runs script 09B0DA, returns a status flag.
+0F2652  func  run_cutscene_scene  # loads cutscene tiles, sets up scroll and colour-cycle tasks, runs a scene variant
+0F2BB2  func  make_12_sprites  # makes 12 sprites, two per entry from a six-long table via 0F40BE, storing handles in two arrays
+0F2C20  func  call_0f418a_on_twelve_longs  # calls 0F418A for each of 12 longs from the array argument
+0F2C82  func  run_prologue_cutscene  # loads cutscene tiles, runs intro script, cleans up, returns skip flag
+0F2E12  func  run_intro_sequence  # pushes args 0xF0 and 0x9A58A, then calls the front end's script sequencer 0F4538 with the intro script.
+0F2E26  func  main_menu_run  # loads the main menu tiles, runs its sequencer scripts and returns the chosen option
+0F306A  func  set_vdp_registers_22_23  # sets VDP registers 22 and 23 via function pointers A2/A3
+0F3084  func  call_two_command_handlers  # calls A2 and A3 with command codes 0x17 and 0x16, then tail-calls 0F30A0
+0F30A0  func  uncalled_0f30a0  # front-end polling loop wraps a selection, dispatches handlers, invokes optional A2/A4 callbacks, and displays status text.
+0F31EA  func  set_fff2c8_from_arg  # writes FF to FFF2C8 if the first argument long is non-zero, otherwise 0
+0F3200  func  fade_palette  # fades 16 VDP colours toward the palette at the second argument over the number of steps in the third
+0F34AE  func  fade_palette_to_white  # fades 64 CRAM colours toward white over D4 steps, writing each step to the VDP
+0F360E  func  init_scroll_table  # initializes the FF58D4 scroll table with FF40 values, ramps its tail, then uploads it to VRAM
+0F37AA  func  read_controller_ports  # reads both Mega Drive controller ports, combining into D0
+0F3810  func  get_scroll_table_count  # returns a table long selected by bits 0-2 of byte F38BF
+0F38C8  func  wait_flag_clear_then_flip  # waits until byte FFF2C9 is 0, then complements it (a toggle/handshake flag)
+0F38D8  func  enable_vdp_display  # sets bit 6 of a stored VDP register 1 value and writes it, turning the display on
+0F38F4  func  disable_display  # clears VDP register 1 bit 6, turning the display off
+0F3910  func  set_vdp_read_address_0F3910  # sets the VDP control port to read VRAM at the address in A0, then reads a word
+0F392E  func  write_vram_word_0F392E  # sets the VDP VRAM write address from A0, then writes D0's low word to the data port
+0F3976  func  write_vram_word_0F3976  # sets VDP VRAM address from A0 and writes D0's word to the data port
+0F39A0  func  read_cram_colour_0F39A0  # reads one CRAM colour word at the index in A0 from the VDP
+0F39C2  func  write_cram_word  # writes the word in D0 to CRAM at the VDP address in A0
+0F3A44  func  test_and_clear_bits  # clears the argument's bits in FFF2CE, returning the ones that were set
+0F3A5E  func  clear_fff2ce_bits  # clears in the long at FFF2CE the bits its argument's set bits mark
+0F3AA4  func  read_cram_colours  # reads a number of CRAM colours from the VDP into a buffer
+0F3AE0  func  write_cram_words  # writes a counted list of words from A1 to CRAM at C00000 with interrupts disabled
+0F3B1C  func  read_cram_colour_0F3B1C  # reads the CRAM colour at the index (second argument) into the pointer (first argument)
+0F3B2E  func  write_vram_word_0F3B2E  # writes its second argument as a word to VRAM at its first argument times two
+0F3C06  func  draw_vram_rows  # writes rows of words from a table into VRAM at a computed plane address
+0F3C82  func  write_vram_block  # writes a width/height block of words into plane B VRAM, row stride by shift table
+0F3E9E  func  set_vdp_register_11_from_sum  # writes VDP register 11 with low byte of the sum of two arguments
+0F3EB8  func  write_scroll_table  # writes a scroll table to VRAM at FC00, setting VDP auto-increment
+0F3F1A  func  write_vram_words  # writes a buffer's first word as a VRAM address, then its data to the VDP data port
+0F3FE6  func  read_vram_block  # reads a block from VRAM into RAM, setting auto-increment
+0F4050  func  unlink_list_node  # walks a 10-byte-stride indexed list at FFF2D2 and bypasses node D1 in its predecessor's link byte
+0F407C  func  insert_sorted_list_node  # inserts node A2 into the list at FFF2D2, ordered by the word at +8 and linked by byte indices
+0F40BE  func  make_sprite  # allocates a free 18-byte sprite record and initializes it from a definition
+0F418A  func  clear_table_entry  # clears the long at FFF2D2 + 16*argument with interrupts masked
+0F41FE  func  move_cutscene_sprite  # reinitialises a front-end sprite record from a definition and moves it by acceleration
+0F4370  func  copy_sprite_table_to_vram  # copies 80 eight-byte sprite entries (10-byte RAM stride) from FFF2DC to VRAM F800
+0F4396  func  add_vblank_task  # inserts a task node into the VBLANK task list at FFF872
+0F43BA  func  remove_task_node  # unlinks the given node from the VBLANK task list at FFF872
+0F4538  func  run_sequence  # calls the sequencer 0F454A on the script passed as its first argument
+0F454A  func  run_front_end_sequence  # runs the front end's command scripts, dispatching each command's handler through a jump table
+0F4568  func  read_script_byte_signed  # reads the next script byte at A4, sign-extended to a long in D0
+0F4570  func  process_sequence_queue  # scans 80-byte queue at FFF87E, clears and runs each nonzero command via 0F418A
+0F4616  func  make_script_sprites_0F4616  # makes sprites from a script list and stores their indices
+0F4684  func  sequencer_command_clear_flag  # reads a script byte as an index, clears that FFF87E flag and passes its previous value to 0F418A, then resumes sequencer
+0F46D2  func  run_front_end_sequencer_0F46D2  # jumps straight to the front end's script sequencer at 0F454A
+0F46D6  func  run_front_end_sequencer_0F46D6  # jumps to the front end sequencer at 0F454A, running its command scripts
+0F46DA  func  make_cutscene_sprite  # reads script parameters, fetches a byte from an indexed FFF87E slot, and passes arguments to 0F41FE.
+0F4714  func  make_script_sprites_0F4714  # reads a sprite list from the script and calls 0F41FE for each entry
+0F47BA  func  sequencer_run_subscript  # reads a byte and script arguments, calls 0F4538, then dispatches according to its return value
+0F47D2  func  sequence_call_function  # sequencer command 11: pushes the script's long arguments and calls its function
+0F47F2  func  repeat_sequencer_block  # restarts a sequencer command block until it returns zero or its byte-sized repeat counter expires.
+0F481C  func  sequencer_command_0f481c  # reads three script bytes and calls VDP helpers, then returns to the sequencer
+0F4850  func  sequencer_fade_palette  # reads a fade value and palette pointer from the script, then fades 16 colours into the selected palette line
+0F486C  func  command_load_palette  # reads palette line, count, source from script, calls 0F3200
+0F48DC  func  run_intro_command_from_table  # reads a byte and word, calls the table's function, returns to the sequencer
+0F5192  func  call_0f51e2_with_table_and_indices  # Pushes a table pointer and two indices scaled by 16, then jumps to 0F51E2
+0F51AE  func  set_object_field_bits_3_4_to_2  # clears bits 3-4 then sets bit 4 of byte at A6-2, then branches to 0F5192
+0F51BC  func  intro_water_edge_set_flags  # clears bit 4, sets bit 3 of byte at -2(A6), then calls 0F51C8
+0F51C8  func  make_intro_water_edge_sprite  # makes one water-edge sprite from 0A19DC at D2/D3 scaled by 16
+0F5282  func  update_water_edge_sprites  # steps 8 water-edge sprites, making or moving each through a callback
+0F5286  func  set_d3_to_one_and_continue  # sets D3 to 1, then continues into the preceding routine
+0F528A  func  set_d3_minus_one_0F528A  # Sets D3 to -1 and branches to 0F5282.
+0F5292  func  set_d3_minus_one_0F5292  # sets D3 to -1, then continues at 0F5294
+0F5B9E  func  ending_cutscene_init  # loads ending cutscene graphics and palette, configures display, then returns a status flag
+0F5C66  func  run_ending_stars_sequence  # runs the ending's stars script via the front-end sequencer and returns its result
+0F5F82  func  make_40_sprites_from_table  # makes 40 sprites, one per long at FF58D4, through 0F418A
+0F5FFE  func  request_z80_bus  # writes 0x100 to A11100 to request the Z80 bus, then waits until bit 0 clears (bus granted)
+0F601C  func  load_z80_sound_driver  # copies the Z80 sound driver from ROM to Z80 RAM, zero-filling the rest
+0F6088  func  gems_send_command_start  # requests Z80 bus, reads A00036 into D1, sets A1 to A01B40, saves context for 0F6164
+0F60DC  func  push_byte_to_ring_buffer  # writes D0 into 64-byte ring buffer at A1 indexed by D1, wraps, stores index at A0
+0F60EA  func  send_gems_command_with_parameter  # passes the word at A6+0xA to a helper, then releases the Z80 bus
+0F60FA  func  send_gems_command_0F60FA  # sends a three-byte command to GEMS, then releases the Z80 bus
+0F6116  func  init_sound_driver  # initializes the sound driver, applies two settings, and passes it four sound-data addresses
+0F615E  func  send_gems_command_10  # GEMS wrapper: calls $F6088, sets D0 to command $10, then branches to $F6164
+0F6164  func  send_gems_command_0F6164  # sends the GEMS command in D0 and a parameter word to the sound driver
+0F6174  func  send_gems_command_12  # calls GEMS 0F6088, sets D0 command 0x12, tail-calls 0F6164
+0F6184  func  send_gems_command_0c  # calls GEMS entry 0F6088, sets D0=12, calls 0F60D0, then releases Z80 bus and returns
+0F6192  func  send_gems_command_0d  # sends GEMS sound driver command 0D to the Z80, then releases its bus
+0F61A0  func  send_gems_command_0x16  # sends GEMS command 0x16 then releases the Z80 bus
+0F61C4  func  send_gems_command_2_words  # sends GEMS command in D0 plus words at A6+0xA and A6+0xE, then releases Z80 bus
+0F628C  func  send_gems_command_30  # sends GEMS command 30 with parameters from A6
+0F6382  func  run_game_state  # runs the handler for the game state at FF5898 (1-5) via jump table
+0F63C8  func  update_random_drift_table  # updates the first long of each 28-byte record at FF5242 with a signed random increment; processes FF568C records
+0F640A  func  increment_counter_and_set_timer  # increments (A3), sets (A4) to -4, calls A5 with 0x79, then jumps to 0F6416
+0F6412  func  increment_word_clear_word_0f6412  # adds 1 to the word at A3, clears the word at A4, then calls 0F6416
+0F6416  func  restore_regs_and_return  # pops D2-D3/A2-A5 from the stack, then returns
+0F64EC  func  make_message  # finds free message slot, copies text, measures width, centers it, activates
+0F65A2  func  play_music  # dispatches music track by index, stores it, and jumps through a table
+0F6662  func  call_a2_with_six_args_0F6662  # pushes 6 args, calls A2, then sub_0F6A08; purpose unclear
+0F667E  func  call_function_with_six_arguments_0F667E  # Pushes six arguments and calls the function pointer held in A2.
+0F6706  func  call_0f670c_with_0bf24a  # pushes 0BF24A as an argument, then calls 0F670C
+0F670C  func  play_sound_0x78  # pushes GEMS play-sound command 6 with sound 0x78, track 6, priority 1, volume 7.
+0F671E  func  call_sub_0f6724_with_bf268  # Pushes address BF268, then calls sub_0F6724.
+0F6724  func  send_gems_command_5  # pushes GEMS command 5 with args 0, 6, 0x78, 4 and calls (A2)
+0F6734  func  call_0f673e_with_bf288_and_2  # pushes $BF288 and 2, then calls 0F673E and returns
+0F673E  func  call_a2_with_four_arguments  # pushes 0x78, 0, 2, 3 then calls A2 and cleans the stack
+0F674A  func  call_function_with_six_args  # pushes six arguments then jumps to shared dispatch routine
+0F6768  func  sub_0f6768  # passes six arguments through a2, cleans the stack, then calls 0F6A08
+0F6790  func  call_function_in_a2_with_args  # pushes 1,2,5,120,6,0BF308 then calls the function in A2
+0F67C4  func  call_0f67ca_with_bf34e  # pushes 0xBF34E and calls sub_0F67CA
+0F67CA  func  call_a2_with_arguments  # pushes 6, 120, 0, 2, 7 then calls A2 and sub_0F6A08
+0F67D8  func  call_0f67de_with_bf36e  # pushes 0xBF36E and tail-calls 0F67DE
+0F67DE  func  call_a2_with_fixed_args_0F67DE  # Pushes arguments (3, 1, 3, 120, 4), calls A2, then calls sub_0F6A08.
+0F6842  func  call_a2_with_bf41e_args  # pushes fixed args (0xBF41E,6,0x78,5,1,3), calls A2, discards 0x18 bytes, then calls 0F6A08.
+0F6858  func  call_function_with_six_arguments_0F6858  # pushes six arguments and calls the function in A2
+0F686C  func  call_a2_with_six_args_0F686C  # pushes BF462, 6, 120, 5, 0 and 4, calls A2, then continues at 0F6A08
+0F688A  func  call_0f67de_with_bf4a6  # tail-calls sub_0F67DE with argument 0xBF4A6.
+0F6894  func  wrapper_0f6894  # pushes pointer BF4C6 and tail-calls sub_0F689A
+0F689A  func  call_0f689e_with_4  # pushes 4 and calls 0F689E, then returns
+0F689E  func  call_function_with_args_78_3_4  # calls A2 with arguments 78, 3, and 4
+0F68AC  func  call_a2_with_six_arguments  # pushes six arguments, calls A2, cleans up, then tail-calls 0F6A08
+0F68C4  func  call_0f689a_with_bf508  # pushes 0BF508 then tail-calls 0F689A; purpose unknown
+0F68D8  func  call_function_0f689a_with_arg_bf546  # pushes data pointer BF546 and tail-calls 0F689A with it
+0F68E0  func  call_function_pointer_with_args  # pushes six arguments, calls the function in A2, then discards the 24-byte stack
+0F68F8  func  call_0f689a_with_bf586  # pushes argument BF586 and jumps to 0F689A
+0F6900  func  call_0f689a_with_0bf5a0  # pushes the address 0bf5a0 and tail-calls 0f689a
+0F6908  func  call_0f689e_with_args  # pushes 0xBF5C0 and zero, then tail-calls 0F689E; purpose uncertain
+0F692A  func  call_a2_with_args_0f692a  # pushes six arguments, calls A2, then calls sub_0F6A08
+0F693E  func  call_a2_with_fixed_args_0F693E  # Calls A2 with six stack arguments, then continues at 0F6A08.
+0F6952  func  call_function_with_fixed_args  # pushes 3, 0, 0, 120, 1, text then calls (A2)
+0F6960  func  call_0f670c_with_pointer_0bf64e  # pushes 0BF64E then jumps to 0F670C
+0F696A  func  call_0f6724_with_0bf66e  # pushes pointer 0BF66E and tail-calls sub_0F6724
+0F6974  func  call_0f673e_with_args  # pushes 0BF68C and 1, then tail-calls 0F673E
+0F69A2  func  call_0f69a8_with_0bf6ca  # pushes address 0xbf6ca and calls 0f69a8, then returns.
+0F69A8  func  call_a2_with_stack_args  # pushes 0,3C,0,0,5 then calls A2 and pops 18h; purpose unclear
+0F69B4  func  push_pointer_and_call  # pushes pointer 0BF6EA then tail-calls the routine at 0F69A8
+0F69BC  func  call_sub_0f69a8_with_bf704  # pushes 0BF704 then tail-calls sub_0F69A8
+0F69C4  func  call_sub_0f69ca_with_0bf720  # pushes address 0BF720, then calls 0F69CA
+0F69CA  func  call_pointer_with_five_args_0f69ca  # pushes 6,0,0,60,0 then jsr (A2), pops 24 bytes
+0F69D8  func  call_0f69ca_with_bf73c  # pushes address 0BF73C then tail-calls sub_0F69CA
+0F69E0  func  push_bf758_and_call_0f69ca  # pushes address BF758 then jumps to sub_0F69CA
+0F69E8  func  call_function_pointer_with_six_args  # pushes six arguments and calls the function pointer in A2
+0F6A08  func  return  # restores D2/A2 from the stack and returns
+0F6A66  func  make_object_0f6a66  # initializes a 32-byte object slot at FFF218 with type, arguments, and function pointers
+0F6B2E  func  spawn_effect_at  # allocates a 5-slot effect, sets x/y, definition and state.
+0F6B92  func  make_bonus_stage_effect  # allocates a 32-byte object, sets x/y, VRAM tile, and two ROM pointers
+0F6BF6  func  dispatch_command  # jump table on the first argument's low byte (0-34), second argument a pointer
+0F6D0C  func  set_ff547c_to_1  # writes 1 to FF547C, then continues at 0F7804
+0F6D18  func  make_ending_star  # makes an ending star at a random position relative to A5 fields 88 and 8A
+0F6D7A  func  add_score_300000_and_play_sound  # adds 300000 to score at FF3CB8, plays sound 0x2F, then calls 0F7804
+0F6D8C  func  push_arg_call_helper_then_tail_jump  # pushes 0x24, calls 0F65A2, then tail-jumps to 0F7804
+0F6D98  func  toggle_word_bit_11_at_offset_e  # XORs 0x800 into the word at offset 0xE of the structure A2 points to (toggles bit 11)
+0F6E10  func  toggle_object_field_0e_bit  # XORs 800h into the word at offset 0Eh of A2, then continues into 0F6E18
+0F6E46  func  set_a2_field_0e_bit_15  # sets bit 15 of the word at offset 14 of A2, then jumps to 0F6DA0
+0F6E50  func  clear_object_flag_bits  # clears bits 14 and 13 of the word at A2+14, then continues at 0F7804
+0F6E5A  func  set_object_0e_bits_0f6e5a  # sets bits 6000 in the word at offset 0E of A2, then branches to 0F7804
+0F6E64  func  increment_counter_wrap_at_7  # increments word at object+0x12, resetting it when past 7, then runs 0F7804
+0F6E84  func  set_object_field_e_bit_800  # sets bit 800h in the word at offset E of A2, then jumps to 0F7804
+0F6E8E  func  clear_object_field_0e_bit_11  # clears bit 11 of the word at offset 0Eh of object A2, then continues at 0F7804
+0F6EB0  func  clear_ffee7e_and_set_ff547c  # clears FFEE7E, sets FF547C to 1, then branches to 0F6E98
+0F76FE  func  make_random_particle  # passes randomized values derived from A5 fields +8 and +10 to the effect helper.
+0F7746  func  reset_object_and_globals  # clears object bit 11, sets FF5238 to -1, clears two globals, sets FFEE7E, jumps to 0F7804
+0F776C  func  bonus_stage_results  # if state 7, plays sounds, adds 2000 points, formats three texts
+0F77E8  func  clear_word_fff1fe  # clears the word at FFF1FE, then continues into 0F7804
+0F77F0  func  call_0d560e_if_fff1fe_is_7  # compares FFF1FE with 7; if equal, calls 0D560E with 0x12, then falls into 0F7804
+0F7804  func  restore_registers_and_return  # restores D2-D3/A2-A5 from the stack frame, unlinks A6 and returns; does nothing else
+0F780E  func  update_timer_list  # decrements linked-list timers; when one expires, advances its script state and calls 0F6BF6
+0F785A  func  update_object_record_timer  # Decrements an object's timer; when it was already zero, advances its record state and dispatches the record command.
+0F78C6  func  sort_object_indices_by_key  # Sorts index array at FF1054 by a 32-bit key at offset 6 of 28-byte records at FF5238.
+0F798A  func  build_sprite_display_list  # builds VDP sprite list from object sub-sprite records, with mirroring and screen coords
+0F7AFE  func  build_object_sprite_list  # builds sprite-list entries from five object records, counting entries with nonzero wrapped Y values
+0F7C08  func  update_bouncing_object_physics  # integrates velocity, applies drag, bounces off bounds, plays sound 121
+0F7D8E  func  binary_search_table  # binary-searches the long table at 0D338E and returns the index of the last entry below the target element
+0F7DDC  func  atan2_degrees  # angle of a vector (x,y) in degrees 0-360, handling quadrants
+0F889C  func  set_object_fields_0f889c  # stores pointer D27E6 at +B8, clears word +B0, then continues at 0F88A8
+0F88A8  func  add_bonus_and_play_sounds  # adds 3000 to FF3CB8, plays sounds 47 and 106, then calls 0F89F2
+0F88D4  func  set_pointer_and_clear_counter  # sets pointer at +0x98, clears counter at +0x90, branches to 0F88A8
+0F88E2  func  award_points_3000_and_play_sound  # adds 3000 to score, plays sound 0x2F, then calls sub_0D560E
+0F88F0  func  init_bonus_stage_map  # sets bonus stage map pointer at A5+78, clears A5+70, jumps to 0F88A8
+0F88FE  func  init_bonus_stage_0f88fe  # sets a state-table pointer, clears a field, adds 1F40 to FF3CB8, calls 0D560E(47), then continues
+0F8918  func  set_script_and_add_score  # sets state script pointer, clears field, adds 8000 to score, plays sounds
+0F8930  func  set_object_fields_0f8930  # sets A5 fields, adds 1F40 to FF3CB8, calls 0D560E
+0F893E  func  set_bonus_stage_fields  # sets field 38 to 0D280E, clears field 30, adds 20000 to FF3CB8, plays sounds 2F, 22 and 6A, then calls 0F89F2
+0F896C  func  award_bonus_score  # marks eight indexed records and another word, calls a helper, adds 300000 to score, and triggers sound effects
+0F89F2  func  clear_field_12  # clears the word at offset 0x12 of the object A3 points to, then restores saved registers
+0F958E  func  draw_two_texts_and_wait  # calls A5 twice with string/position pairs, sets A2 fields, waits 0x76 frames.
+0F95EC  func  bonus_stage_dispatch  # Jumps to a routine chosen by the word at FF3CBC when it is 0-3; otherwise returns.
+0F9612  func  call_two_helpers_with_a2_0f9612  # calls 0F7E8E then 0F8578 with A2, then returns
+0F9622  func  call_two_functions_with_a2  # calls 0F8EAE then 0F90C4 with A2 argument
+0F9632  func  call_0f8c4c_then_0f9392  # calls 0F8C4C then 0F9392, both with A2 as argument
+0F9642  func  push_call_pop_a2  # Pushes A2, calls sub_0F866C and sub_0F89FC, restores A2 from stack.
+0FA248  func  bonus_stage_state_machine_0FA248  # initializes the bonus-stage state if needed, then dispatches states 1–14 through a PC-relative jump table.
+0FA2A8  func  play_sound_76  # pushes 0x4C and calls sub_0D560E (sound routine), then falls into sub_0FA2B4
+0FA2B4  func  set_object_field_14_from_table  # sets field 0x14 of a table-referenced object, bumps counter, sets FFF1EC
+0FA2DE  func  set_object_field_14_to_c8df2  # indexes object table by (A2)*28, sets field +14, increments (A4), sets FFF1EC=2; purpose uncertain
+0FA308  func  set_bonus_stage_object_definition  # sets object field +0x14 to 0xC8E10, increments counter, sets FFF1EC=3
+0FA35A  func  set_indexed_object_field_14  # sets field 0x14 of the object selected by *A2 from A3+0xA4 to 0xC8E4C; increments the counter at A4 and sets FFF1EC to 5
+0FA382  func  increment_counter_set_fff1ec  # adds 1 to the word at (A4), sets FFF1EC to 6, then jumps to 0FA3C8
+0FA38E  func  increment_word_at_a4  # increments the word at A4, then continues at 0FA3C8
+0FA392  func  dispatch_on_ff5468_and_ffab74  # branches to 0FA38E if FF5468 set or FFAB74 clear, else 0FA3C8
+0FA3A4  func  setup_bonus_stage_object  # Selects a table entry by (A2), sets its handler, and clears counters.
+0FA3C8  func  bonus_stage_state_machine_0FA3C8  # dispatches bonus-stage states 1–14 and clears FF7846 when the state is out of range, finishing the sequence.
+0FA49C  func  set_indexed_record_field_14  # sets an indexed record's +0x14 to C8E2E, increments a counter, sets FF55A4=4, clears FF7846
+0FA4EC  func  increment_a5_word_set_6  # increments word at A5, sets FF55A4 to 6, clears FF7846
+0FA4F8  func  increment_counter_clear_ff7846  # adds 1 to the word at A5, clears FF7846, then restores A2-A5 and returns
+0FA4FC  func  wait_ff7846_then_clear  # loops on 0FA4F8 until FF7846 is nonzero, then clears it
+0FA536  func  delay_add_to_ff3cb8  # waits ~77 frames updating objects/audio, adding arg/10 to FF3CB8 each 7 frames
+0FA588  func  bonus_stage_state_dispatch  # Dispatches states 0-3 through a PC-relative jump table; larger values branch to a default handler.
+0FA5AC  func  set_bonus_stage_1  # writes 1 to FF3CBC (bonus-stage tile selector), then continues at 0FA5D0
+0FA5B6  func  set_bonus_stage_tiles_2  # sets FF3CBC to 2, then continues into the shared bonus stage set-up at 0FA5D0
+0FA5C0  func  reset_bonus_stage_variant  # clears FF3CBC, the bonus stage's tile-set pick, then runs the shared start at 0FA5D0
+0FA5D0  func  bonus_stage_init_0FA5D0  # clears bonus stage state, sets timers, then jumps to a variant handler by FF3CBC
+0FA6B4  func  start_bonus_stage_0FA6B4  # sets FF568C and FF036C to 1, FFF20C to 2, then branches to 0FA720 with D0 set to 10
+0FA6D0  func  init_bonus_stage_state  # sets FF568C to 5 and FF036C to 3, clears FFF20C, then continues at 0FA720 with D0=15
+0FA6EA  func  init_bonus_stage_0FA6EA  # stores 1, 1, and 2 at FF568C, FF036C, and FFF20C; sets D0 to 16 and branches to 0FA720
+0FA706  func  start_bonus_stage_0FA706  # sets FF568C, FF036C, FFF20C and D0=17 then calls 0FA720
+0FA720  func  store_d0_to_ff5894  # Writes D0 to FF5894, then continues into sub_0FA726
+0FA726  func  init_bonus_stage_0FA726  # clears state, loads bonus stage tiles, then jumps by the FF3CBC stage variant
+0FA7FE  func  load_bonus_stage_0_tiles  # hands the bonus stage 0 tileset at 0CB14E to the loader, then joins the common tail
+0FA806  func  load_bonus_stage_1_tiles  # pushes 0D10B0 (bonus stage 1 tiles) then branches to the shared loader at 0FA81C
+0FA80E  func  load_bonus_stage_2_tiles  # pushes the bonus stage 2 tileset address and continues into the common tile loader
+0FA816  func  load_bonus_stage_3_tiles  # pushes bonus_stage_3_tiles and calls the tile-loading routine at 0FA81C
+0FA81C  func  load_c2_tiles_from_scaled_ff5480  # shifts FF5480 left 5 and loads C2 tiles at that VRAM address
+0FAB28  func  set_bonus_stage_palettes  # sets FF0364, loads palettes 27-29 into lines 0-2, tail-calls 0FAB9E
+0FAB64  func  set_palette_lines_43_to_46  # sets FF0364 to 135C, loads palettes for lines 43-45, then passes line 46 to 0FAB9E
+0FAB9E  func  set_palette_3  # calls the palette setter 0D8674 with argument 3
+0FB070  func  init_sprite_object_list  # sets up linked sprite objects with positions, sprite data and next pointers
+0FCD6A  func  update_effect_state_machine  # dispatches effect states, optionally creates an effect and plays sound 0x63, and resets invalid states
+0FCDF0  func  update_object_timer_0FCDF0  # counts A2+2 down; at 70 or less sets A2+12=1, A2+16=4, clears A2+0A
+0FCE30  func  step_object_state  # increments word at +2 until 0DE, then sets +12=3, +16=4, clears +A
+0FCE48  func  decrement_object_timer  # decrements word at +0x16; when zero clears +0x12 and sets +0xA to FFFF0000.
+0FCE86  func  update_object_state_0fce86  # sets FFAD18 to 8; decrements field 0x16, selecting field 0x12 value 8 (and calling 0D560E(0x40)) or 6
+0FCEA2  func  update_slot_reel  # Decrements reel spin and timer; sets state 7 or 8 and plays sound 0x40 when timer expires.
+0FCEBA  func  decrement_timer_set_state  # steps down the word at +16 of A2, setting state +18 to 4 or 8 and calling 0D560E when it expires
+0FCECE  func  decrement_timer_clear_fields  # clears A2+A, counts down word at A2+16; at zero clears A2+12 and FFAD1A, then joins 0FCEF0
+0FCEF0  func  set_positions_around_object  # reads an object's x/y and stores five offset position pairs (x Â±0x18, Â±8, base) with the same y
+0FCF5A  func  copy_word_pair_to_entries  # copies FF75DC/FF75DE into six destination word pairs, then tail-calls 0FD880
+0FD012  func  decrement_a2_field6_by_3_and_call_0fd880  # subtracts 3 from the word at A2+6, then tail-calls 0FD880
+0FD01A  func  add2_to_field2_sub2_from_field6  # adds 2 to word at A2+2, subtracts 2 from A2+6, then jumps to 0FD880
+0FD042  func  dispatch_object_field_12  # switches on the word at A2+12; eight cases through a jump table
+0FD06A  func  clear_object_field_16  # clears the word at offset 16h of object A2, then jumps to 0FD880
+0FD18C  func  add_d0_to_object_sub_field  # adds D0 to the word at +8 of the pointer held at A2+18, then continues at 0FD21A
+0FD198  func  update_options_fade_step  # increments a counter, subtracts it from a colour, multiplies by 3, then continues fade
+0FD1D8  func  update_object_offset_by_counter  # increments counter, subtracts it from the object's word at +10, then halves it toward zero and loops to 0FD18C
+0FD1F6  func  increment_counter_subtract_from_pointer_field  # increments counter, subtracts it from pointed object's field, then halves counter and tail-calls
+0FD212  func  subtract_d0_from_object_field_0fd212  # subtracts D0 from the word at +8 of the object A2+0x18 points to, then continues at 0FD21A
+0FD224  func  update_bonus_stage_object_0FD224  # updates a bonus-stage object's state machine and may create an effect in mode 7 at coordinates from globals
+0FD2C2  func  update_object_state_timer_0FD2C2  # Clears an object field, decrements its timer, then on expiry selects a state and calls routines with different data.
+0FD3E8  func  set_object_state_and_random_timer_0FD3E8  # sets A2+12 to 2 and A2+16 to 50 or 100 by random bit 15
+0FD43C  func  set_object_state_and_random_timer_0FD43C  # sets object +12 to 1 and +16 to 50 or 100 from a random bit, then continues at 0FD880
+0FD58C  func  dispatch_object_state_0FD58C  # switch on object field 0x12 (0-3) to four handlers, else 0FD880
+0FD5DE  func  decrement_object_counter_set_state  # Decrements word at +0x16; if its old value was zero, sets +0x12 to 2 and +0xA to 0x18000.
+0FD624  func  decrement_object_counter_reset_fields  # decrements word at A2+0x16; if it was zero, clears +0x12 and sets +0xA to FFFE8000
+0FD642  func  update_bonus_stage_object_0FD642  # awards 5000 points when its counter hits 10 or 18, then runs its four-state dispatch
+0FD6F0  func  check_input_bits_0fd6f0  # if low 5 bits of word (A2+2) are zero, calls 0D560E with 0x31, then 0FD880; else just 0FD880
+0FD752  func  switch_on_object_field_12  # dispatches on word at A2+0x12 (0-4) via jump table, else 0FD880
+0FD774  func  update_random_state_timer  # clears a field, counts down, then randomly selects state 1 or 2 and sets or clears an object's flag
+0FD7AC  func  update_timed_object_state  # Decrements timer; on expiry resets it and sets state by counter threshold, otherwise decreases counter and writes a marker long.
+0FD7BE  func  update_object_state_timer_0FD7BE  # decrements timer, ramps field 0x2, sets state 4 when over 200
+0FD804  func  set_five_object_positions  # stores five positions with x offsets 0, -50, -50, +50, +50 and common y, then calls sub_0FD880
+0FDCAA  func  call_0fdcb4_with_2f  # pushes constant 2F then tail-calls 0FDCB4
+0FDCE4  func  call_0fdcfa_with_1a  # pushes 0x1A and tail-calls 0FDCFA
+0FDCEA  func  call_sub_0fdcfa_with_0x20  # pushes 32 then branches to the function at 0fdcfa
+0FDCF0  func  push_30_and_tail_call_0fdcfa  # pushes 0x1E as an argument, then tail-calls 0FDCFA
+0FDD2A  func  call_0fdd40_with_27  # pushes 0x1B (27) and tail-calls 0FDD40
+0FDD30  func  push_0x21_and_call_0fdd40  # Pushes 0x21 and tail-calls 0FDD40.
+0FDD36  func  call_0fdd40_with_1f  # pushes 1F as an argument, then jumps to 0FDD40
+0FE098  func  switch_on_ffedce  # switch on the word at FFEDCE, 0-4, through a 5-entry jump table at 0FE0B0
+0FE0C0  func  bonus_stage_setup  # pushes 0x1F40 then calls 0FA536 and tail-calls 0FE0D8
+0FE0D8  func  add_bonus_rings_score  # computes FFF206 * 2000 and adds it via 0FA536, then calls 0FE274
+0FE19A  func  dispatch_ff58d0_state  # Dispatches on word at FF58D0 (0-7) via jump table; default over 7.
+0FE206  func  dispatch_on_ff7842_word  # Dispatches through a PC-relative word table for FF7842 values 0–8; other values continue at 0FE274.
+0FE230  func  call_0fa536_then_0fe274  # pushes 0xFA0, calls sub_0FA536, then calls sub_0FE274
+0FE236  func  call_0fa536_with_6000  # pushes 6000, calls 0FA536, then calls 0FE274
+0FE23C  func  call_fa536_with_8000  # pushes 8000, calls 0FA536, then tail-calls 0FE274
+0FE242  func  call_0fa536_with_25000  # Pushes 25000, calls sub_0FA536, removes the argument, then calls sub_0FE274.
+0FE248  func  call_0fa536_with_60000_then_0fe274  # pushes 60000, calls sub_0FA536, then calls sub_0FE274.
+0FE250  func  call_fa536_with_493e0  # pushes 0x493E0 as argument to 0FA536, then runs 0FE274
+0FE258  func  add_bonus_score  # reads FF7842, multiplies by 300000, calls 0FA536
+0FE274  func  start_bonus_stage_0FE274  # checks FF547C, dispatches on bonus-stage selection FF3CBC, or runs the fade transition
+0FE2A2  func  call_with_12_0fe2a2  # pushes constant 12 and tail-calls sub_0FE2B2
+0FE2A8  func  call_0fe2b2_with_13  # pushes 13 as an argument and tail-calls 0FE2B2
+0FE2B2  func  call_0f65a2_then_0fe2b8  # Calls 0F65A2, then continues into 0FE2B8.
+0FE2B8  func  call_0d560e_set_d2  # Calls 0D560E with 0x45, sets D2=0xF0, then branches to 0FE2E4.
+0FE376  func  sort_and_link_ffa8f4_records  # compacts, shell-sorts by word, and links 8-byte records at FFA8F4
+0FE758  func  collect_ring_0FE758  # marks the ring of the given number collected and sets its 21-frame timer
+0FEA76  func  find_free_object_slot  # finds a free 44-byte object slot from a starting index, returns index or -1
+0FEAB8  func  allocate_heap_block  # first-fit 16-byte-node heap allocator: splits a free block of the requested size, marks it used
+0FED1C  func  copy_fff8da_records  # copies the five 6-byte records from 0D3CEC to FFF8DA, sets FFF8D4, FFF8D5, FFF8D7, FFF8D8
+0FED7E  func  init_options_screen_0FED7E  # Loads options tiles, creates option sprites, and shows the six option messages.
+0FEF2A  func  options_screen_input_loop  # reads controller, updates options selection and messages; exact bit logic uncertain
+0FF174  func  init_options_screen_0FF174  # loads options tiles, sets VDP register and music, makes the screen's animated object
+0FF2A6  func  run_options_screen_0FF2A6  # loads options tiles, makes its object, polls input, returns 1 when the screen's exit bit is set
+0FF396  func  insert_fff8da_record  # inserts a player-index/key record into the ordered five-entry table at FFF8DA, or returns -1 if full
+0FF4B4  func  show_option_text  # shows option text and waits for the input flag to clear
+0FF5A4  func  show_credits_page_0FF5A4  # displays five lines of credits from credits_lines and credits_texts
+0FF6B4  func  show_credits_page_0FF6B4  # clears a VRAM row then shows five credits lines
+0FF73E  func  run_options_screen_0FF73E  # loads HUD tiles, sets the options screen and its four per-line palettes, waits, then flags it
+0FF8B8  func  multiply_long  # multiplies D0 by D1, returns the low 32 bits of the product
+0FF8E6  func  signed_divide_long  # signed 32-bit D0/D1 quotient in D0; falls back when the divisor is outside word range or the word quotient overflows.
+0FF922  func  udiv32  # 32-bit unsigned divide: D0 by D1, quotient in D0, remainder in D1
+0FF9A2  func  signed_modulo  # returns signed remainder of D0 divided by D1, with fallback for large divisors
+0FFA4A  func  memset  # fills a byte range with a repeated value and returns the starting address.
+0FFAAE  func  format_decimal  # formats a long as a decimal string into a buffer, returns its length
