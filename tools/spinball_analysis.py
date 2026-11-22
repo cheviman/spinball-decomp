@@ -5,7 +5,7 @@ Description: the core's 68000 static analysis (tools/core/m68000/analysis.py) wi
              known functions, and its tables of addresses read relative to the PC
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    13-11-2026
+Modified:    22-11-2026
 Author:      Sebastian Toyos
 
 Usage: as the core's: python tools/disassemble.py [cartridge] [--trace executed.txt ...]. The profile names this
@@ -23,7 +23,9 @@ core's walk:
     A2 ("movea.l #$F3148, A2") across its calls through A3 and A4, then calls through A2;
   - "movea.l TABLE(PC,Xn), An" reads an entry of a table of addresses, as "movea.l (An,Xn)" does (the front
     end's sequencer, 0F4562 "movea.l $F459A(PC,D0.w), A0", 0F4566 "jmp (A0)").
-Nothing else of the core changes. If another game turns out to need these, they belong in the core.
+The decompiler (tools/decompile.py) reads the switches through switch_table(): their cases are places in the
+function, and a case takes what every way into its switch holds (not only the first way's: 0DFAE0's 69 cases keep
+its function pointers in A3 and A4). Nothing else of the core changes. If another game turns out to need these, they belong in the core.
 """
 import sys
 from pathlib import Path
@@ -75,6 +77,9 @@ class Analysis(core.Analysis):
     def read_switch_table(self, table, count, state):
         """A switch's cases: 'count' words, or up to the first case's code when the count is not known"""
         if table in self.switch_tables:
+            # (read: its cases take what this way into the switch holds too)
+            for target in self.switch_tables[table]:
+                self.enter(target, state, "loc")
             return
         entries = []
         for index in range(count if count is not None else MAX_TABLE):
@@ -89,6 +94,12 @@ class Analysis(core.Analysis):
         self.switch_tables[table] = entries
         for target in entries:
             self.enter(target, state, "loc")
+
+    def switch_table(self, instruction):
+        operand = instruction.operands[0]
+        if operand.mode == "pc_index" and instruction.flow == dis.FLOW_JUMP:
+            return (operand.base + operand.disp) & 0xFFFFFF
+        return None
 
     def computed(self, instruction, state, block):
         operand = instruction.operands[0]

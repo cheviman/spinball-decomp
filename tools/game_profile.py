@@ -4,7 +4,7 @@ Description: what the shared decompiler core (tools/core) needs to know of Sonic
              the game is, its cartridge, and its settings
 Version:     0.1.0
 Created:     13-11-2026
-Modified:    20-11-2026
+Modified:    22-11-2026
 Author:      Sebastian Toyos
 
 The core (arcade-decomp: the decompiler, the CPU frontends, the analysis, the checks) is the same for every
@@ -59,3 +59,17 @@ REPLACED_CODE = {}
 # the reference runs the program as the translated and the decompiled game run it when the scenarios compare them
 # (tools/check_scenarios.py: mdref --timing frames, md/frames.h)
 REFERENCE_OPTIONS = ["--timing", "frames"]                              # the console runs the whole program: nothing in its place
+
+# The decompiled C (tools/decompile.py: the core's m68000/decompile.py, into build/decompiled/)
+DECOMPILER = "m68000.decompile"
+DECOMPILED = "22-11-2026"                       # when build/decompiled/ was first written (its files' headers)
+# the whole program runs in supervisor mode: it never clears S (its writes of SR set the interrupt mask, ori #$700,
+# or put back an SR it saved), so a privileged instruction takes no exception anywhere
+SUPERVISOR_CODE = ((CODE_START, 0x100000),)
+# its C compiler's functions save the address registers they use as they start ("link A6", "movem.l ..., -(A7)")
+# and put them back: the function pointers the code keeps in A3-A5 (0DFAE0's "movea.l #$DE9D4, A3") hold across its
+# calls
+CALLEE_SAVED = True
+# symbols.txt names every piece the translation scaffold split the C functions into (1,736): a piece no call
+# reaches (a switch's case, a branch's target) is a place in its function, which the decompiler writes whole (516)
+LABELS_NOT_ENTRIES = True
