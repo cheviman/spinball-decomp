@@ -319,7 +319,7 @@
 000200  func  initialize_system  # checks hardware version, initializes memory and video hardware, and starts the game
 0003E0  func  draw_string_to_vram  # computes VRAM address from two byte args, writes string chars minus 0x20 as words
 0D3D4C  func  vblank_handler  # increments frame counter, runs updates, reads controller ports
-0D3DF2  func  return_from_exception  # rte: pops status register and return address off the stack, resumes the interrupted code
+0D3DF2  func  interrupt_return  # rte: pops status register and return address off the stack, resumes the interrupted code
 0D3E00  func  wait_for_frame_tick  # loops until the frame counter at FF0000 changes from the value read at entry
 0D3E40  func  loop_forever_0D3E40  # branches to itself forever in a tight loop.
 0D3E42  func  infinite_loop_0D3E42  # branches to itself forever; execution never proceeds past this point
@@ -1692,7 +1692,7 @@
 0F69D8  func  call_0f69ca_with_bf73c  # pushes address 0BF73C then tail-calls sub_0F69CA
 0F69E0  func  push_bf758_and_call_0f69ca  # pushes address BF758 then jumps to sub_0F69CA
 0F69E8  func  call_function_pointer_with_six_args  # pushes six arguments and calls the function pointer in A2
-0F6A08  func  return  # restores D2/A2 from the stack and returns
+0F6A08  func  restore_d2_a2_and_return  # restores D2/A2 from the stack and returns
 0F6A0E  func  find_empty_or_small_channel  # returns the first empty slot, otherwise the index of the smallest nonzero signed value below 500 among five slots.
 0F6A4C  func  decrement_five_counters  # decrements each nonzero word in a five-word array at FFF2B8
 0F6A66  func  make_object_0f6a66  # initializes a 32-byte object slot at FFF218 with type, arguments, and function pointers
@@ -1961,5 +1961,5 @@
 0FF8E6  func  signed_divide_long  # signed 32-bit D0/D1 quotient in D0; falls back when the divisor is outside word range or the word quotient overflows.
 0FF922  func  udiv32  # 32-bit unsigned divide: D0 by D1, quotient in D0, remainder in D1
 0FF9A2  func  signed_modulo  # returns signed remainder of D0 divided by D1, with fallback for large divisors
-0FFA4A  func  memset  # fills a byte range with a repeated value and returns the starting address.
+0FFA4A  func  fill_bytes  # fills a byte range with a repeated value and returns the starting address.
 0FFAAE  func  format_decimal  # formats a long as a decimal string into a buffer, returns its length

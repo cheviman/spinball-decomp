@@ -73,8 +73,21 @@ CALLEE_SAVED = True
 # symbols.txt names every piece the translation scaffold split the C functions into (1,736): a piece no call
 # reaches (a switch's case, a branch's target) is a place in its function, which the decompiler writes whole (516)
 LABELS_NOT_ENTRIES = True
-# the 9 calls through A0/A4/A5 whose address comes from the caller or the game's data: call_code(address)
-DYNAMIC_CALLS = True
+# a call through a register goes where the targets the analysis finds go: what they change is what it changes, so the
+# function pointers kept in A3-A5 hold across a call to a function that calls through one (0F7DDC's "jsr (A2)")
+FOLLOWED_REGISTER_CALLS = True
+# the calls through a register whose address comes from the game's data: the functions the animations' command 10
+# calls (0D5D76, the step's long; tools/data_walk.py), the ones the front end's sequences' command 11 calls (0F47E2
+# "movea.l (A4)+, A0", the script's long; tools/walk_sequences.py), and the routines 0F62B8 runs each frame from the
+# list at FFF872, each 4 bytes into the node 0F4396 links up (pea 0F43DC, 0F442C, 0F448E: its first long links it);
+# mdref --jumps over tests/controls reaches all but 0D61C4 and 0E2F94 of these (23-11-2026)
+CALL_TARGETS = {
+    0x0D5D7A: (0x0D617A, 0x0D6194, 0x0D61AC, 0x0D61B8, 0x0D61C4, 0x0D61D2, 0x0E2F94),
+    0x0F47E4: (0x0F3200, 0x0F3362, 0x0F3676, 0x0F376A, 0x0F3774, 0x0F3AE0, 0x0F3B2E, 0x0F3B3E, 0x0F43BA, 0x0F48FE,
+               0x0F4928, 0x0F49B8, 0x0F4ABA, 0x0F4AE4, 0x0F4C36, 0x0F4D00, 0x0F4D2A, 0x0F4DFE, 0x0F4F00, 0x0F4F2A,
+               0x0F504A, 0x0F5122, 0x0F52EC, 0x0F54F8, 0x0F5D02, 0x0F5E0E),
+    0x0F62D4: (0x0F43E0, 0x0F4430, 0x0F4492),
+}
 # 0F6088 builds its GEMS sender's frame (LINK A6, D1/A1 and SR saved) and goes on at 0F6096 (the Z80's bus
 # requested, the queue's position read); the senders end at 0F60BE's epilogue (UNLK A6)
 # the compiler's LINK A6 frames (85 functions and the GEMS senders): followed, not stopped at
