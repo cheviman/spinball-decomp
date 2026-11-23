@@ -95,3 +95,8 @@ LINK_FRAMES = True
 # the GEMS senders' shared tails (their caller's frame ends there): copied into each sender
 SHARED_TAILS = (0x0F6164, 0x0F61C4)
 FRAME_BUILDERS = {0x0F6088: (0x0F608A, 0x0F6094, 0x0F6096)}
+# the arguments the compiler's functions pass on the stack (the caller pushes them, the callee reads them at "($n,A7)" or
+# "($n,A6)": 229 of the first 321 functions the C could not be written for read them, 57 more only push them for a call) are
+# registers of the data flow, arg_4, arg_6, ... (the core's decompiler/stackargs.py): the callee takes them as parameters and
+# every call passes what the caller pushed
+STACK_ARGUMENTS = True
