@@ -1609,6 +1609,7 @@
 0F601C  func  load_z80_sound_driver  # copies the Z80 sound driver from ROM to Z80 RAM, zero-filling the rest
 0F6060  func  z80_reset_and_release_bus  # asserts Z80 reset, delays, releases the bus request, then releases reset.
 0F6088  func  gems_send_command_start  # requests Z80 bus, reads A00036 into D1, sets A1 to A01B40, saves context for 0F6164
+0F6096  func  gems_request_bus  # the rest of 0F6088 once the frame is built: A0=A00036, A1=A01B40, Z80 bus requested, D1 = the queue position
 0F60D0  func  write_ff_and_advance_ring_index  # Writes 0xFF at A1 plus signed D1.w, advances D1 modulo 64, then calls the ring-buffer helper.
 0F60DC  func  push_byte_to_ring_buffer  # writes D0 into 64-byte ring buffer at A1 indexed by D1, wraps, stores index at A0
 0F60EA  func  send_gems_command_with_parameter  # passes the word at A6+0xA to a helper, then releases the Z80 bus

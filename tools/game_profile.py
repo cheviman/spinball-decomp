@@ -75,3 +75,10 @@ CALLEE_SAVED = True
 LABELS_NOT_ENTRIES = True
 # the 9 calls through A0/A4/A5 whose address comes from the caller or the game's data: call_code(address)
 DYNAMIC_CALLS = True
+# 0F6088 builds its GEMS sender's frame (LINK A6, D1/A1 and SR saved) and goes on at 0F6096 (the Z80's bus
+# requested, the queue's position read); the senders end at 0F60BE's epilogue (UNLK A6)
+# the compiler's LINK A6 frames (85 functions and the GEMS senders): followed, not stopped at
+LINK_FRAMES = True
+# the GEMS senders' shared tails (their caller's frame ends there): copied into each sender
+SHARED_TAILS = (0x0F6164, 0x0F61C4)
+FRAME_BUILDERS = {0x0F6088: (0x0F608A, 0x0F6094, 0x0F6096)}
