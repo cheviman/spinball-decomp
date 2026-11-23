@@ -73,3 +73,5 @@ CALLEE_SAVED = True
 # symbols.txt names every piece the translation scaffold split the C functions into (1,736): a piece no call
 # reaches (a switch's case, a branch's target) is a place in its function, which the decompiler writes whole (516)
 LABELS_NOT_ENTRIES = True
+# the 9 calls through A0/A4/A5 whose address comes from the caller or the game's data: call_code(address)
+DYNAMIC_CALLS = True
