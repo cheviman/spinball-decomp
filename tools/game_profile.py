@@ -100,3 +100,7 @@ FRAME_BUILDERS = {0x0F6088: (0x0F608A, 0x0F6094, 0x0F6096)}
 # registers of the data flow, arg_4, arg_6, ... (the core's decompiler/stackargs.py): the callee takes them as parameters and
 # every call passes what the caller pushed
 STACK_ARGUMENTS = True
+# a function that hands on an address in its own stack (the palette fades' buffers 0F3AA4 and 0F3AE0 fill, a word a callee
+# returns a second result in, a buffer read from the VDP and walked with A0) keeps its stack in the console's memory, at
+# the global stack_pointer (the core's MEMORY_STACK, decompiler/stack.py): its callees get real addresses
+MEMORY_STACK = True
